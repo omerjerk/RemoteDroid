@@ -38,9 +38,11 @@ public class MainActivity extends Activity {
 
     public void startClient (View v) {
         startActivity(new Intent(MainActivity.this, ClientActivity.class));
+        finish();
     }
 
     public void startServer (View v) {
         startActivity(new Intent(MainActivity.this, ServerActivity.class));
+        finish();
     }
 }
