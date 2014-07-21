@@ -12,6 +12,10 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.Surface;
+import com.koushikdutta.async.*;
+import com.koushikdutta.async.callback.CompletedCallback;
+import com.koushikdutta.async.callback.DataCallback;
+import com.koushikdutta.async.callback.ListenCallback;
 
 import java.nio.ByteBuffer;
 
@@ -24,33 +28,57 @@ public class ServerActivity extends Activity {
 
     final int TIMEOUT_USEC = 10000;
 
+    public static final int SERVER_PORT = 6000;
+
+    private AsyncServer asyncServer;
+    private AsyncNetworkSocket asyncClient;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_server);
 
+        asyncServer = new AsyncServer();
+        asyncServer.listen(null, SERVER_PORT, listenCallback);
+
         //Start rendering display on the surface and setting up the encoder
         startDisplayManager();
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.server, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-        if (id == R.id.action_settings) {
-            return true;
+    private ListenCallback listenCallback = new ListenCallback() {
+        @Override
+        public void onAccepted(AsyncSocket socket) {
+            // this example service shows only a single server <-> client communication
+            if (asyncClient != null) {
+                asyncClient.close();
+            }
+            asyncClient = (AsyncNetworkSocket) socket;
+            asyncClient.setDataCallback(new DataCallback() {
+                @Override
+                public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
+                    Log.i(TAG, "Data received: " + bb.readString());
+                }
+            });
+            asyncClient.setClosedCallback(new CompletedCallback() {
+                @Override
+                public void onCompleted(Exception ex) {
+                    asyncClient = null;
+                    Log.i(TAG, "Client socket closed");
+                }
+            });
+            Log.i(TAG, "Client socket connected");
         }
-        return super.onOptionsItemSelected(item);
-    }
+
+        @Override
+        public void onListening(AsyncServerSocket socket) {
+            Log.i(TAG, "Server listening on port " + socket.getLocalPort());
+        }
+
+        @Override
+        public void onCompleted(Exception ex) {
+            Log.i(TAG, "Server socket closed");
+        }
+    };
 
     @TargetApi(19)
     private Surface createDisplaySurface () {

@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="androidasync-1.3.7">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/app/libs/androidasync-1.3.7.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
