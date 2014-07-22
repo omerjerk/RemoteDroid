@@ -43,6 +43,7 @@ public class ServerActivity extends Activity {
 
         //Start rendering display on the surface and setting up the encoder
         startDisplayManager();
+        new Thread(new EncoderWorker()).start();
     }
 
     private ListenCallback listenCallback = new ListenCallback() {
