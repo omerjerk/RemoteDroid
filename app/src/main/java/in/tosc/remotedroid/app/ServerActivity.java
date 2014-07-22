@@ -142,6 +142,7 @@ public class ServerActivity extends Activity {
                         //TODO: Removed as I will use only one type of encoder
                     } else {
                         //TODO: Send the buffer over websockets to the client
+                        asyncClient.write(encodedData);
                         encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
                     }
                     encoder.releaseOutputBuffer(encoderStatus, false);
