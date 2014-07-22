@@ -9,15 +9,18 @@ import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.Surface;
-import com.koushikdutta.async.*;
+import com.koushikdutta.async.ByteBufferList;
+import com.koushikdutta.async.DataEmitter;
 import com.koushikdutta.async.callback.CompletedCallback;
 import com.koushikdutta.async.callback.DataCallback;
-import com.koushikdutta.async.callback.ListenCallback;
+import com.koushikdutta.async.http.WebSocket;
+import com.koushikdutta.async.http.libcore.RequestHeaders;
+import com.koushikdutta.async.http.server.AsyncHttpServer;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 
 public class ServerActivity extends Activity {
@@ -30,54 +33,48 @@ public class ServerActivity extends Activity {
 
     public static final int SERVER_PORT = 6000;
 
-    private AsyncServer asyncServer;
-    private AsyncNetworkSocket asyncClient;
+    private AsyncHttpServer server;
+    private List<WebSocket> _sockets = new ArrayList<WebSocket>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_server);
 
-        asyncServer = new AsyncServer();
-        asyncServer.listen(null, SERVER_PORT, listenCallback);
+        server = new AsyncHttpServer();
+        server.websocket("/live", websocketCallback);
+        server.listen(SERVER_PORT);
 
         //Start rendering display on the surface and setting up the encoder
         startDisplayManager();
         new Thread(new EncoderWorker()).start();
     }
 
-    private ListenCallback listenCallback = new ListenCallback() {
+    private AsyncHttpServer.WebSocketRequestCallback websocketCallback = new AsyncHttpServer.WebSocketRequestCallback() {
+
         @Override
-        public void onAccepted(AsyncSocket socket) {
-            // this example service shows only a single server <-> client communication
-            if (asyncClient != null) {
-                asyncClient.close();
-            }
-            asyncClient = (AsyncNetworkSocket) socket;
-            asyncClient.setDataCallback(new DataCallback() {
-                @Override
-                public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
-                    Log.i(TAG, "Data received: " + bb.readString());
-                }
-            });
-            asyncClient.setClosedCallback(new CompletedCallback() {
+        public void onConnected(final WebSocket webSocket, RequestHeaders requestHeaders) {
+            _sockets.add(webSocket);
+
+            //Use this to clean up any references to your websocket
+            webSocket.setClosedCallback(new CompletedCallback() {
                 @Override
                 public void onCompleted(Exception ex) {
-                    asyncClient = null;
-                    Log.i(TAG, "Client socket closed");
+                    try {
+                        if (ex != null)
+                            Log.e("WebSocket", "Error");
+                    } finally {
+                        _sockets.remove(webSocket);
+                    }
                 }
             });
-            Log.i(TAG, "Client socket connected");
-        }
 
-        @Override
-        public void onListening(AsyncServerSocket socket) {
-            Log.i(TAG, "Server listening on port " + socket.getLocalPort());
-        }
-
-        @Override
-        public void onCompleted(Exception ex) {
-            Log.i(TAG, "Server socket closed");
+            webSocket.setDataCallback(new DataCallback() {
+                @Override
+                public void onDataAvailable(DataEmitter dataEmitter, ByteBufferList byteBufferList) {
+                    Log.d(TAG, "I received some bytes = " + byteBufferList.toString());
+                }
+            });
         }
     };
 
@@ -143,7 +140,10 @@ public class ServerActivity extends Activity {
                         //TODO: Removed as I will use only one type of encoder
                     } else {
                         //TODO: Send the buffer over websockets to the client
-                        asyncClient.write(encodedData);
+                        byte[] b = new byte[info.size];
+                        encodedData.get(b, info.offset, info.size);
+                        for (WebSocket socket : _sockets)
+                            socket.send(b);
                         encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
                     }
                     encoder.releaseOutputBuffer(encoderStatus, false);

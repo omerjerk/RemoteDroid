@@ -2,8 +2,18 @@ package in.tosc.remotedroid.app;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import com.koushikdutta.async.AsyncSocket;
+import com.koushikdutta.async.ByteBufferList;
+import com.koushikdutta.async.DataEmitter;
+import com.koushikdutta.async.http.socketio.*;
+import com.koushikdutta.async.callback.DataCallback;
+import com.koushikdutta.async.http.AsyncHttpClient;
+import com.koushikdutta.async.http.socketio.transport.SocketIOTransport;
+import org.json.JSONArray;
+import org.json.JSONObject;
 
 
 public class ClientActivity extends Activity {
@@ -12,25 +22,23 @@ public class ClientActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_client);
+        SocketIOClient.connect(AsyncHttpClient.getDefaultInstance(), "http://192.168.1.2:3000", connectCallback);
     }
 
+    private ConnectCallback connectCallback = new ConnectCallback() {
+        @Override
+        public void onConnectCompleted(Exception e, SocketIOClient socketIOClient) {
+            if (e != null) {
+                e.printStackTrace();
+                return;
+            }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.client, menu);
-        return true;
-    }
+            socketIOClient.setStringCallback(new StringCallback() {
+                @Override
+                public void onString(String s, Acknowledge acknowledge) {
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-        if (id == R.id.action_settings) {
-            return true;
+                }
+            });
         }
-        return super.onOptionsItemSelected(item);
-    }
+    };
 }
