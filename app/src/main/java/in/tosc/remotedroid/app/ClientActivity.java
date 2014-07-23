@@ -22,9 +22,11 @@ public class ClientActivity extends Activity {
 
     }
 
-    private AsyncHttpClient.WebSocketConnectCallback websocketCallback = new AsyncHttpClient.WebSocketConnectCallback() {
+    private AsyncHttpClient.WebSocketConnectCallback websocketCallback = new AsyncHttpClient
+            .WebSocketConnectCallback() {
         @Override
         public void onCompleted(Exception ex, WebSocket webSocket) {
+            Log.d(TAG, "Connection completed!");
             if (ex != null) {
                 ex.printStackTrace();
                 return;

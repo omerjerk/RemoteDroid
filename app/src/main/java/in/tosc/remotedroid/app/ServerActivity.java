@@ -62,7 +62,7 @@ public class ServerActivity extends Activity {
                 public void onCompleted(Exception ex) {
                     try {
                         if (ex != null)
-                            Log.e("WebSocket", "Error");
+                            Log.e(TAG, "Error");
                     } finally {
                         _sockets.remove(webSocket);
                     }
@@ -80,7 +80,8 @@ public class ServerActivity extends Activity {
 
     @TargetApi(19)
     private Surface createDisplaySurface () {
-        MediaFormat mMediaFormat = MediaFormat.createVideoFormat("video/avc", CodecUtils.WIDTH, CodecUtils.HEIGHT);
+        MediaFormat mMediaFormat = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
+                CodecUtils.WIDTH, CodecUtils.HEIGHT);
         mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1000000);
         mMediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
         mMediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
