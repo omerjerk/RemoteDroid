@@ -10,6 +10,8 @@ import android.media.MediaFormat;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Surface;
+import android.view.SurfaceView;
+import android.widget.Toast;
 import com.koushikdutta.async.ByteBufferList;
 import com.koushikdutta.async.DataEmitter;
 import com.koushikdutta.async.callback.CompletedCallback;
@@ -21,6 +23,7 @@ import com.koushikdutta.async.http.server.AsyncHttpServer;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 
 public class ServerActivity extends Activity {
@@ -42,7 +45,7 @@ public class ServerActivity extends Activity {
         setContentView(R.layout.activity_server);
 
         server = new AsyncHttpServer();
-        server.websocket("/live", websocketCallback);
+        server.websocket("/", websocketCallback);
         server.listen(SERVER_PORT);
 
         //Start rendering display on the surface and setting up the encoder
@@ -55,6 +58,7 @@ public class ServerActivity extends Activity {
         @Override
         public void onConnected(final WebSocket webSocket, RequestHeaders requestHeaders) {
             _sockets.add(webSocket);
+            showToast("Someone just connected");
 
             //Use this to clean up any references to your websocket
             webSocket.setClosedCallback(new CompletedCallback() {
@@ -69,10 +73,17 @@ public class ServerActivity extends Activity {
                 }
             });
 
+            webSocket.setStringCallback(new WebSocket.StringCallback() {
+                @Override
+                public void onStringAvailable(String s) {
+                    showToast("Received some string");
+                }
+            });
+
             webSocket.setDataCallback(new DataCallback() {
                 @Override
                 public void onDataAvailable(DataEmitter dataEmitter, ByteBufferList byteBufferList) {
-                    Log.d(TAG, "I received some bytes = " + byteBufferList.toString());
+                    showToast("Received some bytes");
                 }
             });
         }
@@ -87,7 +98,7 @@ public class ServerActivity extends Activity {
         mMediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10);
         Log.i(TAG, "Starting encoder");
-        encoder = MediaCodec.createByCodecName(CodecUtils.selectCodec(CodecUtils.MIME_TYPE).getName());
+        encoder = MediaCodec.createEncoderByType(CodecUtils.MIME_TYPE);
         encoder.configure(mMediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
 
         Surface surface = encoder.createInputSurface();
@@ -100,7 +111,7 @@ public class ServerActivity extends Activity {
     public void startDisplayManager() {
         DisplayManager mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
         Surface encoderInputSurface = createDisplaySurface();
-        mDisplayManager.createVirtualDisplay("OpenCV Virtual Display", 960, 1280, 150, encoderInputSurface,
+        mDisplayManager.createVirtualDisplay("Remote Droid", 720, 1280, 150, encoderInputSurface,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC | DisplayManager.VIRTUAL_DISPLAY_FLAG_SECURE);
     }
 
@@ -109,13 +120,15 @@ public class ServerActivity extends Activity {
         @Override
         public void run() {
             ByteBuffer[] encoderOutputBuffers = encoder.getOutputBuffers();
-            MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+
             boolean encoderDone = false;
+            MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
             while (!encoderDone) {
-                int encoderStatus = encoder.dequeueOutputBuffer(info, TIMEOUT_USEC);
+
+                int encoderStatus = encoder.dequeueOutputBuffer(info, TimeUnit.SECONDS.toMicros(1) / 30);
                 if (encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
                     // no output available yet
-                    Log.d(TAG, "no output from encoder available");
+                    //Log.d(TAG, "no output from encoder available");
                 } else if (encoderStatus == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
                     // not expected for an encoder
                     encoderOutputBuffers = encoder.getOutputBuffers();
@@ -132,17 +145,16 @@ public class ServerActivity extends Activity {
                         break;
                     }
                     // It's usually necessary to adjust the ByteBuffer values to match BufferInfo.
-                    encodedData.position(info.offset);
-                    encodedData.limit(info.offset + info.size);
+                    encodedData.rewind();
                     if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
                         // Codec config info.  Only expected on first packet.  One way to
                         // handle this is to manually stuff the data into the MediaFormat
                         // and pass that to configure().  We do that here to exercise the API.
-                        //TODO: Removed as I will use only one type of encoder
+                        //TODO: Removed as I will use only one type of encoding
                     } else {
                         //TODO: Send the buffer over websockets to the client
                         byte[] b = new byte[info.size];
-                        encodedData.get(b, info.offset, info.size);
+                        encodedData.get(b, 0, info.size);
                         for (WebSocket socket : _sockets)
                             socket.send(b);
                         encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
@@ -151,5 +163,14 @@ public class ServerActivity extends Activity {
                 }
             }
         }
+    }
+
+    private void showToast(final String message) {
+        ServerActivity.this.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(ServerActivity.this, message, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 }

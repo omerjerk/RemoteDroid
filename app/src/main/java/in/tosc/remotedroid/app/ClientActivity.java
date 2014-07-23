@@ -3,8 +3,10 @@ package in.tosc.remotedroid.app;
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
+import android.widget.Toast;
 import com.koushikdutta.async.ByteBufferList;
 import com.koushikdutta.async.DataEmitter;
+import com.koushikdutta.async.callback.CompletedCallback;
 import com.koushikdutta.async.http.WebSocket;
 import com.koushikdutta.async.callback.DataCallback;
 import com.koushikdutta.async.http.AsyncHttpClient;
@@ -18,7 +20,7 @@ public class ClientActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_client);
-        AsyncHttpClient.getDefaultInstance().websocket("ws://192.168.43.1:6000", "ws", websocketCallback);
+        AsyncHttpClient.getDefaultInstance().websocket("ws://192.168.43.1:6000", null, websocketCallback);
 
     }
 
@@ -26,11 +28,18 @@ public class ClientActivity extends Activity {
             .WebSocketConnectCallback() {
         @Override
         public void onCompleted(Exception ex, WebSocket webSocket) {
-            Log.d(TAG, "Connection completed!");
+
             if (ex != null) {
                 ex.printStackTrace();
                 return;
             }
+            showToast("Connection Completed");
+            webSocket.setClosedCallback(new CompletedCallback() {
+                @Override
+                public void onCompleted(Exception e) {
+                    Log.d(TAG, "CLOSED");
+                }
+            });
             webSocket.send("a string");
             webSocket.send(new byte[10]);
             webSocket.setStringCallback(new WebSocket.StringCallback() {
@@ -46,4 +55,13 @@ public class ClientActivity extends Activity {
             });
         }
     };
+
+    private void showToast(final String message) {
+        ClientActivity.this.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(ClientActivity.this, message, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
 }
