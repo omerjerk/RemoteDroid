@@ -4,10 +4,6 @@
       <root url="jar://$PROJECT_DIR$/app/libs/androidasync-1.3.7.jar!/" />
     </CLASSES>
     <JAVADOC />
-    <SOURCES>
-      <root url="file://$PROJECT_DIR$/../AndroidAsync/AndroidAsync/gen" />
-      <root url="file://$PROJECT_DIR$/../AndroidAsync/AndroidAsync/src" />
-      <root url="file://$PROJECT_DIR$/../AndroidAsync/AndroidAsync/test/src" />
-    </SOURCES>
+    <SOURCES />
   </library>
 </component>

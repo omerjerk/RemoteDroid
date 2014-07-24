@@ -32,8 +32,6 @@ public class ServerActivity extends Activity {
 
     private static final String TAG = "omerjerk";
 
-    final int TIMEOUT_USEC = 10000;
-
     public static final int SERVER_PORT = 6000;
 
     private AsyncHttpServer server;
@@ -45,7 +43,7 @@ public class ServerActivity extends Activity {
         setContentView(R.layout.activity_server);
 
         server = new AsyncHttpServer();
-        server.websocket("/", websocketCallback);
+        server.websocket("/", null, websocketCallback);
         server.listen(SERVER_PORT);
 
         //Start rendering display on the surface and setting up the encoder
@@ -66,24 +64,26 @@ public class ServerActivity extends Activity {
                 public void onCompleted(Exception ex) {
                     try {
                         if (ex != null)
-                            Log.e(TAG, "Error");
+                            ex.printStackTrace();
                     } finally {
                         _sockets.remove(webSocket);
                     }
+                    showToast("Disconnected");
                 }
             });
 
             webSocket.setStringCallback(new WebSocket.StringCallback() {
                 @Override
                 public void onStringAvailable(String s) {
-                    showToast("Received some string");
+                    showToast("Received some string = " + s);
                 }
             });
 
             webSocket.setDataCallback(new DataCallback() {
                 @Override
                 public void onDataAvailable(DataEmitter dataEmitter, ByteBufferList byteBufferList) {
-                    showToast("Received some bytes");
+                    showToast("Received some bytes" + byteBufferList.toString());
+                    byteBufferList.recycle();
                 }
             });
         }
@@ -115,6 +115,7 @@ public class ServerActivity extends Activity {
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC | DisplayManager.VIRTUAL_DISPLAY_FLAG_SECURE);
     }
 
+    @TargetApi(19)
     private class EncoderWorker implements Runnable {
 
         @Override
@@ -125,7 +126,7 @@ public class ServerActivity extends Activity {
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
             while (!encoderDone) {
 
-                int encoderStatus = encoder.dequeueOutputBuffer(info, TimeUnit.SECONDS.toMicros(1) / 30);
+                int encoderStatus = encoder.dequeueOutputBuffer(info, CodecUtils.TIMEOUT_USEC);
                 if (encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
                     // no output available yet
                     //Log.d(TAG, "no output from encoder available");
@@ -155,8 +156,12 @@ public class ServerActivity extends Activity {
                         //TODO: Send the buffer over websockets to the client
                         byte[] b = new byte[info.size];
                         encodedData.get(b, 0, info.size);
-                        for (WebSocket socket : _sockets)
+                        for (WebSocket socket : _sockets) {
+                            socket.send(info.offset + "," + info.size + "," +
+                                    info.presentationTimeUs + "," + info.flags);
                             socket.send(b);
+                        }
+
                         encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
                     }
                     encoder.releaseOutputBuffer(encoderStatus, false);
