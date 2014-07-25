@@ -2,7 +2,6 @@ package in.tosc.remotedroid.app;
 
 import android.app.Activity;
 import android.media.MediaCodec;
-import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.os.Bundle;
 import android.util.Log;
@@ -28,7 +27,6 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback{
     MediaCodec decoder;
     boolean decoderConfigured = false;
     ByteBuffer[] decoderInputBuffers = null;
-    ByteBuffer[] decoderOutputBuffers = null;
     MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
 
     @Override
@@ -37,7 +35,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback{
         setContentView(R.layout.activity_client);
         surfaceView = (SurfaceView) findViewById(R.id.main_surface_view);
         surfaceView.getHolder().addCallback(this);
-        AsyncHttpClient.getDefaultInstance().websocket("ws://192.168.43.1:6000", null, websocketCallback);
+
     }
 
     private AsyncHttpClient.WebSocketConnectCallback websocketCallback = new AsyncHttpClient
@@ -68,8 +66,9 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback{
                                 Integer.parseInt(parts[3]));
                     } catch (NumberFormatException e) {
                         e.printStackTrace();
+                        Log.d(TAG, "===========Exception = " + e.getMessage() + " =================");
                         //TODO: Need to stop the decoder or to skip the current decoder loop
-                        showToast(e.getMessage());
+                       showToast(e.getMessage());
                     }
 
                 }
@@ -77,15 +76,36 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback{
             webSocket.setDataCallback(new DataCallback() {
                 @Override
                 public void onDataAvailable(DataEmitter dataEmitter, ByteBufferList byteBufferList) {
-                    byteBufferList.recycle();
-                    if (decoderConfigured) {
-                        int inputBufIndex = decoder.dequeueInputBuffer(-1);
-                        ByteBuffer inputBuf = decoderInputBuffers[inputBufIndex];
-                        inputBuf.clear();
-                        inputBuf.put(byteBufferList.getAll());
-                        decoder.queueInputBuffer(inputBufIndex, 0, info.size,
-                                info.presentationTimeUs, info.flags);
-                        //encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
+                    if (true) {
+                        ByteBuffer b = byteBufferList.getAll();
+                        b.position(info.offset);
+                        b.limit(info.offset + info.size);
+                        if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                            MediaFormat format =
+                                    MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
+                                            CodecUtils.WIDTH, CodecUtils.HEIGHT);
+                            format.setByteBuffer("csd-0", b);
+                            decoder.configure(format, surfaceView.getHolder().getSurface(), null, 0);
+                            decoder.start();
+                            byteBufferList.recycle();
+                            decoderInputBuffers = decoder.getInputBuffers();
+                            decoderConfigured = true;
+                            return;
+                        }
+                        int inputBufIndex = decoder.dequeueInputBuffer(CodecUtils.TIMEOUT_USEC);
+                        if (inputBufIndex >= 0) {
+                            ByteBuffer inputBuf = decoderInputBuffers[inputBufIndex];
+                            inputBuf.clear();
+
+                            Log.d(TAG, "Size = " + b.limit());
+                            byte[] buff = new byte[info.size];
+                            b.get(buff, 0, info.size);
+                            inputBuf.clear();
+                            inputBuf.put(buff);
+                            inputBuf.rewind();
+                            decoder.queueInputBuffer(inputBufIndex, 0, info.size,
+                                    info.presentationTimeUs, 0 /*flags*/);
+                        }
                         int decoderStatus = decoder.dequeueOutputBuffer(info, CodecUtils.TIMEOUT_USEC);
                         if (decoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
                             // no output available yet
@@ -95,13 +115,13 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback{
                             // so attempting to access data through the old output buffer array could
                             // lead to a native crash.
                             Log.d(TAG, "decoder output buffers changed");
-                            decoderOutputBuffers = decoder.getOutputBuffers();
                         } else if (decoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                             // this happens before the first frame is returned
                             MediaFormat decoderOutputFormat = decoder.getOutputFormat();
                             Log.d(TAG, "decoder output format changed: " + decoderOutputFormat);
                         } else if (decoderStatus < 0) {
                             //TODO: fail
+                            showToast("Something wrong with the decoder. Need to stop everything.");
                         } else {
                             if (info.size == 0) {
                                 Log.d(TAG, "got empty frame");
@@ -109,9 +129,11 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback{
                             if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                                 Log.d(TAG, "output EOS");
                             }
-                            decoder.releaseOutputBuffer(decoderStatus, true /*render*/);
+                            boolean doRender = (info.size != 0);
+                            decoder.releaseOutputBuffer(decoderStatus, doRender /*render*/);
                         }
                     }
+                    byteBufferList.recycle();
                 }
             });
         }
@@ -128,25 +150,15 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback{
 
     @Override
     public void surfaceCreated(SurfaceHolder surfaceHolder) {
-        MediaFormat format = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE, 720, 1280);
-        format.setInteger(MediaFormat.KEY_BIT_RATE, 1000000);
-        format.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
-        format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10);
-        decoder.configure(format, surfaceHolder.getSurface(), null, 0);
-        decoder.start();
-        decoderInputBuffers = decoder.getInputBuffers();
-        decoderOutputBuffers = decoder.getOutputBuffers();
-        decoderConfigured = true;
+        decoder = MediaCodec.createDecoderByType(CodecUtils.MIME_TYPE);
+        AsyncHttpClient.getDefaultInstance().websocket("ws://192.168.43.1:6000", null, websocketCallback);
     }
 
     @Override
     public void surfaceChanged(SurfaceHolder surfaceHolder, int i, int i2, int i3) {
-
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
-
     }
 }

@@ -10,7 +10,6 @@ import android.media.MediaFormat;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Surface;
-import android.view.SurfaceView;
 import android.widget.Toast;
 import com.koushikdutta.async.ByteBufferList;
 import com.koushikdutta.async.DataEmitter;
@@ -23,7 +22,6 @@ import com.koushikdutta.async.http.server.AsyncHttpServer;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 
 public class ServerActivity extends Activity {
@@ -45,10 +43,6 @@ public class ServerActivity extends Activity {
         server = new AsyncHttpServer();
         server.websocket("/", null, websocketCallback);
         server.listen(SERVER_PORT);
-
-        //Start rendering display on the surface and setting up the encoder
-        startDisplayManager();
-        new Thread(new EncoderWorker()).start();
     }
 
     private AsyncHttpServer.WebSocketRequestCallback websocketCallback = new AsyncHttpServer.WebSocketRequestCallback() {
@@ -58,7 +52,10 @@ public class ServerActivity extends Activity {
             _sockets.add(webSocket);
             showToast("Someone just connected");
 
-            //Use this to clean up any references to your websocket
+            //Start rendering display on the surface and setting up the encoder
+            startDisplayManager();
+            new Thread(new EncoderWorker()).start();
+            //Use this to clean up any references to the websocket
             webSocket.setClosedCallback(new CompletedCallback() {
                 @Override
                 public void onCompleted(Exception ex) {
@@ -75,14 +72,13 @@ public class ServerActivity extends Activity {
             webSocket.setStringCallback(new WebSocket.StringCallback() {
                 @Override
                 public void onStringAvailable(String s) {
-                    showToast("Received some string = " + s);
+                    Log.d(TAG, "Received string = " + s);
                 }
             });
 
             webSocket.setDataCallback(new DataCallback() {
                 @Override
                 public void onDataAvailable(DataEmitter dataEmitter, ByteBufferList byteBufferList) {
-                    showToast("Received some bytes" + byteBufferList.toString());
                     byteBufferList.recycle();
                 }
             });
@@ -90,7 +86,7 @@ public class ServerActivity extends Activity {
     };
 
     @TargetApi(19)
-    private Surface createDisplaySurface () {
+    private Surface createDisplaySurface() {
         MediaFormat mMediaFormat = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
                 CodecUtils.WIDTH, CodecUtils.HEIGHT);
         mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1000000);
@@ -147,23 +143,20 @@ public class ServerActivity extends Activity {
                     }
                     // It's usually necessary to adjust the ByteBuffer values to match BufferInfo.
                     encodedData.rewind();
-                    if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                        // Codec config info.  Only expected on first packet.  One way to
-                        // handle this is to manually stuff the data into the MediaFormat
-                        // and pass that to configure().  We do that here to exercise the API.
-                        //TODO: Removed as I will use only one type of encoding
-                    } else {
-                        //TODO: Send the buffer over websockets to the client
-                        byte[] b = new byte[info.size];
-                        encodedData.get(b, 0, info.size);
-                        for (WebSocket socket : _sockets) {
-                            socket.send(info.offset + "," + info.size + "," +
-                                    info.presentationTimeUs + "," + info.flags);
-                            socket.send(b);
-                        }
 
-                        encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
+                    //TODO: Send the buffer over websockets to the client
+                    byte[] b = new byte[info.size];
+
+                    encodedData.get(b, 0, info.size);
+
+                    for (WebSocket socket : _sockets) {
+                        socket.send(info.offset + "," + info.size + "," +
+                                info.presentationTimeUs + "," + info.flags);
+                        socket.send(b);
                     }
+
+                    encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
+
                     encoder.releaseOutputBuffer(encoderStatus, false);
                 }
             }

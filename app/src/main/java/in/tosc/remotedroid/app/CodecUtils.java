@@ -13,7 +13,8 @@ public class CodecUtils {
 
     public static final int TIMEOUT_USEC = 10000;
 
-    public static final String MIME_TYPE = "video/x-vnd.on2.vp8";
+//    public static final String MIME_TYPE = "video/x-vnd.on2.vp8";
+    public static final String MIME_TYPE = "video/avc";
 
     public static MediaCodecInfo selectCodec(String mimeType) {
         int numCodecs = MediaCodecList.getCodecCount();
