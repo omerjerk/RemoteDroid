@@ -6,5 +6,7 @@
     <string name="action_settings">Settings</string>
     <string name="title_activity_client">Client Activity</string>
     <string name="title_activity_server">Server Activity</string>
+    <string name="description_server">Choose this to cast the display of this device to a client.</string>
+    <string name="description_client">Choose this to get the display of some other device.</string>
 
 </resources>
