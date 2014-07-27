@@ -8,8 +8,8 @@ import android.media.MediaCodecList;
  */
 public class CodecUtils {
 
-    public static final int WIDTH = 720;
-    public static final int HEIGHT = 1280;
+    public static final int WIDTH = 360;
+    public static final int HEIGHT = 640;
 
     public static final int TIMEOUT_USEC = 10000;
 

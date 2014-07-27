@@ -107,7 +107,8 @@ public class ServerActivity extends Activity {
     public void startDisplayManager() {
         DisplayManager mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
         Surface encoderInputSurface = createDisplaySurface();
-        mDisplayManager.createVirtualDisplay("Remote Droid", 720, 1280, 150, encoderInputSurface,
+        mDisplayManager.createVirtualDisplay("Remote Droid", CodecUtils.WIDTH, CodecUtils.HEIGHT, 100,
+                encoderInputSurface,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC | DisplayManager.VIRTUAL_DISPLAY_FLAG_SECURE);
     }
 
