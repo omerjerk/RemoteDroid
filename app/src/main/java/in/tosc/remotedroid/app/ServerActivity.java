@@ -19,6 +19,9 @@ import com.koushikdutta.async.http.WebSocket;
 import com.koushikdutta.async.http.libcore.RequestHeaders;
 import com.koushikdutta.async.http.server.AsyncHttpServer;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +37,10 @@ public class ServerActivity extends Activity {
 
     private AsyncHttpServer server;
     private List<WebSocket> _sockets = new ArrayList<WebSocket>();
+
+    long frameCount = 0;
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,7 +61,7 @@ public class ServerActivity extends Activity {
 
             //Start rendering display on the surface and setting up the encoder
             startDisplayManager();
-            new Thread(new EncoderWorker()).start();
+            new Thread(new EncoderWorker(), "Encoder Thread").start();
             //Use this to clean up any references to the websocket
             webSocket.setClosedCallback(new CompletedCallback() {
                 @Override
@@ -72,7 +79,30 @@ public class ServerActivity extends Activity {
             webSocket.setStringCallback(new WebSocket.StringCallback() {
                 @Override
                 public void onStringAvailable(String s) {
-                    Log.d(TAG, "Received string = " + s);
+                    String[] parts = s.split(",");
+                    try {
+                        float x = Float.parseFloat(parts[0]);
+                        float y = Float.parseFloat(parts[1]);
+                        Process su = null;
+                        DataOutputStream outputStream = null;
+                        try {
+                            su = Runtime.getRuntime().exec("su");
+                            outputStream = new DataOutputStream(su.getOutputStream());
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        outputStream.flush();
+                        outputStream.writeBytes("input tap " + x + " " + y + "\n");
+                        outputStream.flush();
+                        outputStream.writeBytes("exit\n");
+                        outputStream.flush();
+                        su.waitFor();
+                        //Runtime.getRuntime().exec("input tap " + x + " " + y);
+                        //tap.waitFor();
+                        Log.d(TAG, "Execution using su = " + "input tap " + x + " " + y);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 }
             });
 
@@ -89,7 +119,7 @@ public class ServerActivity extends Activity {
     private Surface createDisplaySurface() {
         MediaFormat mMediaFormat = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
                 CodecUtils.WIDTH, CodecUtils.HEIGHT);
-        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1000000);
+        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 262144);
         mMediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
         mMediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10);
@@ -140,6 +170,7 @@ public class ServerActivity extends Activity {
                 } else {
                     ByteBuffer encodedData = encoderOutputBuffers[encoderStatus];
                     if (encodedData == null) {
+                        Log.d(TAG, "============It's NULL. BREAK!=============");
                         break;
                     }
                     // It's usually necessary to adjust the ByteBuffer values to match BufferInfo.
@@ -149,12 +180,14 @@ public class ServerActivity extends Activity {
                     byte[] b = new byte[info.size];
 
                     encodedData.get(b, 0, info.size);
+                    //if (frameCount % 5 != 0 || frameCount == 0)
+                        for (WebSocket socket : _sockets) {
+                            socket.send(info.offset + "," + info.size + "," +
+                                    info.presentationTimeUs + "," + info.flags);
+                            socket.send(b);
+                        }
 
-                    for (WebSocket socket : _sockets) {
-                        socket.send(info.offset + "," + info.size + "," +
-                                info.presentationTimeUs + "," + info.flags);
-                        socket.send(b);
-                    }
+                    //++frameCount;
 
                     encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
 

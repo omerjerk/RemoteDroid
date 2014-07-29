@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAPTURE_VIDEO_OUTPUT" />
     <uses-permission android:name="android.permission.CAPTURE_SECURE_VIDEO_OUTPUT" />
+    <uses-permission android:name="android.permission.ACCESS_SUPERUSER" />
+    <uses-permission android:name="android.permission.INJECT_EVENTS" />
 
     <application
         android:allowBackup="true"
@@ -30,6 +32,14 @@
         <activity
             android:name="in.tosc.remotedroid.app.ServerActivity"
             android:label="@string/title_activity_server" >
+        </activity>
+        <activity
+            android:name="in.tosc.remotedroid.app.SettingsActivity"
+            android:label="@string/title_activity_settings"
+            android:parentActivityName="in.tosc.remotedroid.app.MainActivity" >
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value="MainActivity" />
         </activity>
     </application>
 

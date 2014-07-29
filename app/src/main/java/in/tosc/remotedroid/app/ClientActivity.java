@@ -5,8 +5,10 @@ import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 import android.widget.Toast;
 import com.koushikdutta.async.ByteBufferList;
 import com.koushikdutta.async.DataEmitter;
@@ -15,10 +17,12 @@ import com.koushikdutta.async.http.WebSocket;
 import com.koushikdutta.async.callback.DataCallback;
 import com.koushikdutta.async.http.AsyncHttpClient;
 
+import java.nio.Buffer;
+import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 
 
-public class ClientActivity extends Activity implements SurfaceHolder.Callback{
+public class ClientActivity extends Activity implements SurfaceHolder.Callback, View.OnTouchListener{
 
     private static final String TAG = "omerjerk";
 
@@ -29,33 +33,38 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback{
     ByteBuffer[] decoderInputBuffers = null;
     MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
 
+    long frameCount = 0;
+
+    private WebSocket webSocket;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        hideSystemUI();
         setContentView(R.layout.activity_client);
         surfaceView = (SurfaceView) findViewById(R.id.main_surface_view);
         surfaceView.getHolder().addCallback(this);
-
+        surfaceView.setOnTouchListener(this);
     }
 
     private AsyncHttpClient.WebSocketConnectCallback websocketCallback = new AsyncHttpClient
             .WebSocketConnectCallback() {
         @Override
-        public void onCompleted(Exception ex, WebSocket webSocket) {
+        public void onCompleted(final Exception ex, WebSocket webSocket) {
 
             if (ex != null) {
                 ex.printStackTrace();
                 return;
             }
+            ClientActivity.this.webSocket = webSocket;
             showToast("Connection Completed");
             webSocket.setClosedCallback(new CompletedCallback() {
                 @Override
                 public void onCompleted(Exception e) {
+                    ClientActivity.this.webSocket = null;
                     showToast("Closed");
                 }
             });
-            webSocket.send("a string");
-            webSocket.send(new byte[10]);
             webSocket.setStringCallback(new WebSocket.StringCallback() {
                 public void onStringAvailable(String s) {
                     String[] parts = s.split(",");
@@ -101,7 +110,13 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback{
                             byte[] buff = new byte[info.size];
                             b.get(buff, 0, info.size);
                             inputBuf.clear();
-                            inputBuf.put(buff);
+                            try {
+                                inputBuf.put(buff);
+                            } catch (BufferOverflowException e) {
+                                showToast("Buffer Overflow = " + e.getMessage());
+                                e.printStackTrace();
+                            }
+
                             inputBuf.rewind();
                             decoder.queueInputBuffer(inputBufIndex, 0, info.size,
                                     info.presentationTimeUs, 0 /*flags*/);
@@ -139,6 +154,19 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback{
         }
     };
 
+    private void hideSystemUI() {
+        // Set the IMMERSIVE flag.
+        // Set the content to appear under the system bars so that the content
+        // doesn't resize when the system bars hide and show.
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+    }
+
     private void showToast(final String message) {
         ClientActivity.this.runOnUiThread(new Runnable() {
             @Override
@@ -160,5 +188,13 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback{
 
     @Override
     public void surfaceDestroyed(SurfaceHolder surfaceHolder) {
+    }
+
+    @Override
+    public boolean onTouch(View view, MotionEvent motionEvent) {
+        if (webSocket != null) {
+            webSocket.send(motionEvent.getX() + "," + motionEvent.getY());
+        }
+        return false;
     }
 }
