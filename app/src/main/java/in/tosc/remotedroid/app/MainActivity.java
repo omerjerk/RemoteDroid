@@ -43,7 +43,7 @@ public class MainActivity extends Activity {
     }
 
     public void startServer (View v) {
-        startActivity(new Intent(MainActivity.this, ServerActivity.class));
+        startService(new Intent(MainActivity.this, ServerService.class));
         finish();
     }
 }

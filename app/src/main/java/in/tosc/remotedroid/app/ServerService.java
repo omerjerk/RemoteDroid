@@ -1,13 +1,15 @@
 package in.tosc.remotedroid.app;
 
 import android.annotation.TargetApi;
-import android.app.Activity;
+import android.app.Service;
 import android.content.Context;
+import android.content.Intent;
 import android.hardware.display.DisplayManager;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
-import android.os.Bundle;
+import android.os.Handler;
+import android.os.IBinder;
 import android.util.Log;
 import android.view.Surface;
 import android.widget.Toast;
@@ -21,13 +23,13 @@ import com.koushikdutta.async.http.server.AsyncHttpServer;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Method;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
 
-public class ServerActivity extends Activity {
+public class ServerService extends Service {
 
     private MediaCodec encoder = null;
 
@@ -40,16 +42,41 @@ public class ServerActivity extends Activity {
 
     long frameCount = 0;
 
+    Handler handler;
 
+    private class HandlerRunnable implements Runnable {
+
+        MediaCodec.BufferInfo info;
+        ByteBuffer byteBuffer;
+
+        public void setRunnableData(MediaCodec.BufferInfo info, ByteBuffer byteBuffer) {
+            this.info = info;
+            this.byteBuffer = byteBuffer;
+        }
+
+        @Override
+        public void run() {
+            for (WebSocket socket : _sockets) {
+                socket.send(info.offset + "," + info.size + "," +
+                        info.presentationTimeUs + "," + info.flags);
+                byte[] b = new byte[info.size];
+                try {
+                    byteBuffer.position(0);
+                    byteBuffer.get(b, 0, info.size);
+                    socket.send(b);
+                } catch (BufferUnderflowException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_server);
-
+    public int onStartCommand(Intent intent, int flags, int startId) {
         server = new AsyncHttpServer();
         server.websocket("/", null, websocketCallback);
         server.listen(SERVER_PORT);
+        return START_STICKY;
     }
 
     private AsyncHttpServer.WebSocketRequestCallback websocketCallback = new AsyncHttpServer.WebSocketRequestCallback() {
@@ -73,6 +100,9 @@ public class ServerActivity extends Activity {
                         _sockets.remove(webSocket);
                     }
                     showToast("Disconnected");
+                    encoder.stop();
+                    encoder.release();
+                    encoder = null;
                 }
             });
 
@@ -91,14 +121,12 @@ public class ServerActivity extends Activity {
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
-                        outputStream.flush();
+                        //outputStream.flush();
                         outputStream.writeBytes("input tap " + x + " " + y + "\n");
                         outputStream.flush();
                         outputStream.writeBytes("exit\n");
                         outputStream.flush();
                         su.waitFor();
-                        //Runtime.getRuntime().exec("input tap " + x + " " + y);
-                        //tap.waitFor();
                         Log.d(TAG, "Execution using su = " + "input tap " + x + " " + y);
                     } catch (Exception e) {
                         e.printStackTrace();
@@ -122,7 +150,7 @@ public class ServerActivity extends Activity {
         mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 262144);
         mMediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
         mMediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10);
+        mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1000);
         Log.i(TAG, "Starting encoder");
         encoder = MediaCodec.createEncoderByType(CodecUtils.MIME_TYPE);
         encoder.configure(mMediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
@@ -137,7 +165,7 @@ public class ServerActivity extends Activity {
     public void startDisplayManager() {
         DisplayManager mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
         Surface encoderInputSurface = createDisplaySurface();
-        mDisplayManager.createVirtualDisplay("Remote Droid", CodecUtils.WIDTH, CodecUtils.HEIGHT, 100,
+        mDisplayManager.createVirtualDisplay("Remote Droid", CodecUtils.WIDTH, CodecUtils.HEIGHT, 50,
                 encoderInputSurface,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC | DisplayManager.VIRTUAL_DISPLAY_FLAG_SECURE);
     }
@@ -151,8 +179,8 @@ public class ServerActivity extends Activity {
 
             boolean encoderDone = false;
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+            HandlerRunnable streamerRunnable = new HandlerRunnable();
             while (!encoderDone) {
-
                 int encoderStatus = encoder.dequeueOutputBuffer(info, CodecUtils.TIMEOUT_USEC);
                 if (encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
                     // no output available yet
@@ -171,24 +199,20 @@ public class ServerActivity extends Activity {
                     ByteBuffer encodedData = encoderOutputBuffers[encoderStatus];
                     if (encodedData == null) {
                         Log.d(TAG, "============It's NULL. BREAK!=============");
-                        break;
+                        return;
                     }
-                    // It's usually necessary to adjust the ByteBuffer values to match BufferInfo.
-                    encodedData.rewind();
-
-                    //TODO: Send the buffer over websockets to the client
-                    byte[] b = new byte[info.size];
-
-                    encodedData.get(b, 0, info.size);
-                    //if (frameCount % 5 != 0 || frameCount == 0)
-                        for (WebSocket socket : _sockets) {
-                            socket.send(info.offset + "," + info.size + "," +
-                                    info.presentationTimeUs + "," + info.flags);
+                    for (WebSocket socket : _sockets) {
+                        socket.send(info.offset + "," + info.size + "," +
+                                info.presentationTimeUs + "," + info.flags);
+                        byte[] b = new byte[info.size];
+                        try {
+                            encodedData.position(0);
+                            encodedData.get(b, 0, info.size);
                             socket.send(b);
+                        } catch (BufferUnderflowException e) {
+                            e.printStackTrace();
                         }
-
-                    //++frameCount;
-
+                    }
                     encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
 
                     encoder.releaseOutputBuffer(encoderStatus, false);
@@ -197,11 +221,21 @@ public class ServerActivity extends Activity {
         }
     }
 
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
     private void showToast(final String message) {
-        ServerActivity.this.runOnUiThread(new Runnable() {
+        ServerService.this.runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                Toast.makeText(ServerActivity.this, message, Toast.LENGTH_SHORT).show();
+                Toast.makeText(ServerService.this, message, Toast.LENGTH_SHORT).show();
             }
         });
     }
