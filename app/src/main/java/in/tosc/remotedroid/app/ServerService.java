@@ -42,32 +42,18 @@ public class ServerService extends Service {
 
     long frameCount = 0;
 
-    Handler handler;
+    Handler mHandler;
 
-    private class HandlerRunnable implements Runnable {
+    private class ToastRunnable implements Runnable {
+        String mText;
 
-        MediaCodec.BufferInfo info;
-        ByteBuffer byteBuffer;
-
-        public void setRunnableData(MediaCodec.BufferInfo info, ByteBuffer byteBuffer) {
-            this.info = info;
-            this.byteBuffer = byteBuffer;
+        public ToastRunnable(String text) {
+            mText = text;
         }
 
         @Override
-        public void run() {
-            for (WebSocket socket : _sockets) {
-                socket.send(info.offset + "," + info.size + "," +
-                        info.presentationTimeUs + "," + info.flags);
-                byte[] b = new byte[info.size];
-                try {
-                    byteBuffer.position(0);
-                    byteBuffer.get(b, 0, info.size);
-                    socket.send(b);
-                } catch (BufferUnderflowException e) {
-                    e.printStackTrace();
-                }
-            }
+        public void run(){
+            Toast.makeText(getApplicationContext(), mText, Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -76,6 +62,7 @@ public class ServerService extends Service {
         server = new AsyncHttpServer();
         server.websocket("/", null, websocketCallback);
         server.listen(SERVER_PORT);
+        mHandler = new Handler();
         return START_STICKY;
     }
 
@@ -179,7 +166,6 @@ public class ServerService extends Service {
 
             boolean encoderDone = false;
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
-            HandlerRunnable streamerRunnable = new HandlerRunnable();
             while (!encoderDone) {
                 int encoderStatus = encoder.dequeueOutputBuffer(info, CodecUtils.TIMEOUT_USEC);
                 if (encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
@@ -232,11 +218,6 @@ public class ServerService extends Service {
     }
 
     private void showToast(final String message) {
-        ServerService.this.runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                Toast.makeText(ServerService.this, message, Toast.LENGTH_SHORT).show();
-            }
-        });
+        mHandler.post(new ToastRunnable(message));
     }
 }
