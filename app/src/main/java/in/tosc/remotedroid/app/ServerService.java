@@ -210,6 +210,11 @@ public class ServerService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        if (encoder != null) {
+            encoder.stop();
+            encoder.release();
+            encoder = null;
+        }
     }
 
     @Override
