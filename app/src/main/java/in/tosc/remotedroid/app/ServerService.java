@@ -1,6 +1,9 @@
 package in.tosc.remotedroid.app;
 
 import android.annotation.TargetApi;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
@@ -42,7 +45,11 @@ public class ServerService extends Service {
 
     long frameCount = 0;
 
+    Thread encoderThread = null;
+
     Handler mHandler;
+
+    NotificationManager mNotificationManager;
 
     private class ToastRunnable implements Runnable {
         String mText;
@@ -59,10 +66,20 @@ public class ServerService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        server = new AsyncHttpServer();
-        server.websocket("/", null, websocketCallback);
-        server.listen(SERVER_PORT);
-        mHandler = new Handler();
+        if (intent != null && intent.getAction() == "STOP") {
+            encoder.signalEndOfInputStream();
+            mNotificationManager.cancelAll();
+            server.stop();
+            stopForeground(true);
+        }
+        if (server == null) {
+            server = new AsyncHttpServer();
+            server.websocket("/", null, websocketCallback);
+            server.listen(SERVER_PORT);
+            mHandler = new Handler();
+            mNotificationManager =
+                    (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        }
         return START_STICKY;
     }
 
@@ -72,10 +89,11 @@ public class ServerService extends Service {
         public void onConnected(final WebSocket webSocket, RequestHeaders requestHeaders) {
             _sockets.add(webSocket);
             showToast("Someone just connected");
-
+            updateNotification("Streaming is live!");
             //Start rendering display on the surface and setting up the encoder
             startDisplayManager();
-            new Thread(new EncoderWorker(), "Encoder Thread").start();
+            encoderThread = new Thread(new EncoderWorker(), "Encoder Thread");
+            encoderThread.start();
             //Use this to clean up any references to the websocket
             webSocket.setClosedCallback(new CompletedCallback() {
                 @Override
@@ -87,9 +105,7 @@ public class ServerService extends Service {
                         _sockets.remove(webSocket);
                     }
                     showToast("Disconnected");
-                    encoder.stop();
-                    encoder.release();
-                    encoder = null;
+                    stopSelf();
                 }
             });
 
@@ -167,7 +183,14 @@ public class ServerService extends Service {
             boolean encoderDone = false;
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
             while (!encoderDone) {
-                int encoderStatus = encoder.dequeueOutputBuffer(info, CodecUtils.TIMEOUT_USEC);
+                int encoderStatus;
+                try {
+                    encoderStatus = encoder.dequeueOutputBuffer(info, CodecUtils.TIMEOUT_USEC);
+                } catch (IllegalStateException e) {
+                    e.printStackTrace();
+                    break;
+                }
+
                 if (encoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
                     // no output available yet
                     //Log.d(TAG, "no output from encoder available");
@@ -201,7 +224,12 @@ public class ServerService extends Service {
                     }
                     encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
 
-                    encoder.releaseOutputBuffer(encoderStatus, false);
+                    try {
+                        encoder.releaseOutputBuffer(encoderStatus, false);
+                    } catch (IllegalStateException e) {
+                        e.printStackTrace();
+                        break;
+                    }
                 }
             }
         }
@@ -224,5 +252,21 @@ public class ServerService extends Service {
 
     private void showToast(final String message) {
         mHandler.post(new ToastRunnable(message));
+    }
+
+
+    private void updateNotification(String message) {
+        Intent intent = new Intent(this, ServerService.class);
+        intent.setAction("STOP");
+        PendingIntent stopServiceIntent = PendingIntent.getService(this, 0, intent, 0);
+        Notification.Builder mBuilder =
+                new Notification.Builder(this)
+                        .setSmallIcon(R.drawable.ic_launcher)
+                        .setOngoing(true)
+                        .addAction(R.drawable.ic_launcher, "Stop", stopServiceIntent)
+                        .setContentTitle(message);
+        NotificationManager mNotificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        mNotificationManager.notify(6000, mBuilder.build());
     }
 }
