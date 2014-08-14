@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory
+            android:title="Network"
+            android:key="pref_network">
+
+        <EditTextPreference
+                android:title="Port Number"
+                android:key="port"
+                android:defaultValue="6000"
+                android:inputType="number"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+            android:title="Video"
+            android:key="pref_video">
+    </PreferenceCategory>
+</PreferenceScreen>
