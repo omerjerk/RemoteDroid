@@ -38,8 +38,7 @@ public class MainActivity extends Activity {
     }
 
     public void startClient (View v) {
-        startActivity(new Intent(MainActivity.this, ClientActivity.class));
-        finish();
+        new AddressInputDialog().show(getFragmentManager(), "Address Dialog");
     }
 
     public void startServer (View v) {

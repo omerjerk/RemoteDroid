@@ -1,9 +1,11 @@
 package in.tosc.remotedroid.app;
 
 import android.app.Activity;
+import android.location.Address;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.os.Bundle;
+import android.provider.Telephony;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -39,9 +41,12 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
 
     private WebSocket webSocket;
 
+    String address;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        address = getIntent().getStringExtra(AddressInputDialog.KEY_ADDRESS_EXTRA);
         hideSystemUI();
         setContentView(R.layout.activity_client);
         surfaceView = (SurfaceView) findViewById(R.id.main_surface_view);
@@ -184,7 +189,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
     @Override
     public void surfaceCreated(SurfaceHolder surfaceHolder) {
         decoder = MediaCodec.createDecoderByType(CodecUtils.MIME_TYPE);
-        AsyncHttpClient.getDefaultInstance().websocket("ws://192.168.43.1:6000", null, websocketCallback);
+        AsyncHttpClient.getDefaultInstance().websocket("ws://" + address, null, websocketCallback);
     }
 
     @Override
