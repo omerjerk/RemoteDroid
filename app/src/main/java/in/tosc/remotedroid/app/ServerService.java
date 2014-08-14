@@ -154,10 +154,10 @@ public class ServerService extends Service {
         MediaFormat mMediaFormat = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
                 CodecUtils.WIDTH, CodecUtils.HEIGHT);
         //mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 262144);
-        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1000000);
+        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1000000/4);
         mMediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
         mMediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10000);
+        mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1000);
         Log.i(TAG, "Starting encoder");
         encoder = MediaCodec.createEncoderByType(CodecUtils.MIME_TYPE);
         encoder.configure(mMediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
@@ -172,7 +172,7 @@ public class ServerService extends Service {
     public void startDisplayManager() {
         DisplayManager mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
         Surface encoderInputSurface = createDisplaySurface();
-        mDisplayManager.createVirtualDisplay("Remote Droid", CodecUtils.WIDTH, CodecUtils.HEIGHT, 50,
+        mDisplayManager.createVirtualDisplay("Remote Droid", CodecUtils.WIDTH, CodecUtils.HEIGHT, 100,
                 encoderInputSurface,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC | DisplayManager.VIRTUAL_DISPLAY_FLAG_SECURE);
     }

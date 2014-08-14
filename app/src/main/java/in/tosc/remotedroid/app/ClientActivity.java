@@ -113,15 +113,17 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
                         if (inputBufIndex >= 0) {
                             ByteBuffer inputBuf = decoderInputBuffers[inputBufIndex];
                             inputBuf.clear();
-
-                            Log.d(TAG, "Size = " + b.limit());
+                            inputBuf.limit(info.size);
                             byte[] buff = new byte[info.size];
                             b.get(buff, 0, info.size);
-                            inputBuf.clear();
+                            //inputBuf.clear();
                             try {
                                 inputBuf.put(buff);
+
+
                             } catch (BufferOverflowException e) {
                                 showToast("Buffer Overflow = " + e.getMessage());
+                                Log.d(TAG, "Input buff capacity = " + inputBuf.capacity() + " limit = " + inputBuf.limit() + " byte size = " + buff.length);
                                 e.printStackTrace();
                                 byteBufferList.recycle();
                                 return;
@@ -212,11 +214,10 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
         new Timer("keep_alive").scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                Log.d(TAG, "Sending random data");
                 if (webSocket != null) {
                     webSocket.send("random,");
                 }
             }
-        }, 2000, 2000);
+        }, 2000, 3000);
     }
 }
