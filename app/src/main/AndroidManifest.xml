@@ -34,6 +34,7 @@
             android:exported="true"
             android:label="@string/title_activity_server" >
         </service>
+        <!--
         <activity
             android:name="in.tosc.remotedroid.app.SettingsActivity"
             android:label="@string/title_activity_settings"
@@ -41,7 +42,7 @@
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="MainActivity" />
-        </activity>
+        </activity> -->
     </application>
 
 </manifest>

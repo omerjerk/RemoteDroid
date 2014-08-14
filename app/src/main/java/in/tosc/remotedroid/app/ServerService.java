@@ -113,6 +113,9 @@ public class ServerService extends Service {
                 @Override
                 public void onStringAvailable(String s) {
                     String[] parts = s.split(",");
+                    if (parts.length < 2) {
+                        return;
+                    }
                     try {
                         float x = Float.parseFloat(parts[0]);
                         float y = Float.parseFloat(parts[1]);
@@ -150,10 +153,11 @@ public class ServerService extends Service {
     private Surface createDisplaySurface() {
         MediaFormat mMediaFormat = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
                 CodecUtils.WIDTH, CodecUtils.HEIGHT);
-        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 262144);
+        //mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 262144);
+        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1000000);
         mMediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
         mMediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1000);
+        mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 10000);
         Log.i(TAG, "Starting encoder");
         encoder = MediaCodec.createEncoderByType(CodecUtils.MIME_TYPE);
         encoder.configure(mMediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);

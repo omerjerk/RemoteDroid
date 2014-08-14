@@ -20,6 +20,8 @@ import com.koushikdutta.async.http.AsyncHttpClient;
 import java.nio.Buffer;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
+import java.util.Timer;
+import java.util.TimerTask;
 
 
 public class ClientActivity extends Activity implements SurfaceHolder.Callback, View.OnTouchListener{
@@ -58,6 +60,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
             }
             ClientActivity.this.webSocket = webSocket;
             showToast("Connection Completed");
+            setTimer();
             webSocket.setClosedCallback(new CompletedCallback() {
                 @Override
                 public void onCompleted(Exception e) {
@@ -196,5 +199,17 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
             webSocket.send(motionEvent.getX() + "," + motionEvent.getY());
         }
         return false;
+    }
+
+    private void setTimer() {
+        new Timer("keep_alive").scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                Log.d(TAG, "Sending random data");
+                if (webSocket != null) {
+                    webSocket.send("random,");
+                }
+            }
+        }, 2000, 2000);
     }
 }
