@@ -89,7 +89,7 @@ public class ServerService extends Service {
         public void onConnected(final WebSocket webSocket, RequestHeaders requestHeaders) {
             _sockets.add(webSocket);
             showToast("Someone just connected");
-            updateNotification("Streaming is live!");
+            updateNotification("Streaming is live at");
             //Start rendering display on the surface and setting up the encoder
             startDisplayManager();
             encoderThread = new Thread(new EncoderWorker(), "Encoder Thread");
@@ -268,7 +268,8 @@ public class ServerService extends Service {
                         .setSmallIcon(R.drawable.ic_launcher)
                         .setOngoing(true)
                         .addAction(R.drawable.ic_launcher, "Stop", stopServiceIntent)
-                        .setContentTitle(message);
+                        .setContentTitle(message)
+                        .setContentText(Utils.getIPAddress(true) + ":6000");
         NotificationManager mNotificationManager =
                 (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         mNotificationManager.notify(6000, mBuilder.build());
