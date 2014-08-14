@@ -70,22 +70,26 @@ public class ServerService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && intent.getAction() == "STOP") {
-            encoder.signalEndOfInputStream();
+            if (encoder != null)
+                encoder.signalEndOfInputStream();
             mNotificationManager.cancelAll();
             server.stop();
+            server = null;
             stopForeground(true);
+            stopSelf();
         }
-        if (server == null) {
+        if (server == null && intent.getAction().equals("START")) {
             server = new AsyncHttpServer();
             server.websocket("/", null, websocketCallback);
             preferences = PreferenceManager.getDefaultSharedPreferences(this);
             SERVER_PORT = Integer.parseInt(preferences.getString(SettingsActivity.KEY_PORT_PREF, "6000"));
+            updateNotification("Streaming is live at");
             server.listen(SERVER_PORT);
             mHandler = new Handler();
             mNotificationManager =
                     (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         }
-        return START_STICKY;
+        return START_NOT_STICKY;
     }
 
     private AsyncHttpServer.WebSocketRequestCallback websocketCallback = new AsyncHttpServer.WebSocketRequestCallback() {
@@ -94,7 +98,6 @@ public class ServerService extends Service {
         public void onConnected(final WebSocket webSocket, RequestHeaders requestHeaders) {
             _sockets.add(webSocket);
             showToast("Someone just connected");
-            updateNotification("Streaming is live at");
             //Start rendering display on the surface and setting up the encoder
             startDisplayManager();
             encoderThread = new Thread(new EncoderWorker(), "Encoder Thread");
@@ -274,7 +277,7 @@ public class ServerService extends Service {
                         .setOngoing(true)
                         .addAction(R.drawable.ic_launcher, "Stop", stopServiceIntent)
                         .setContentTitle(message)
-                        .setContentText(Utils.getIPAddress(true) + ":6000");
+                        .setContentText(Utils.getIPAddress(true) + ":" + SERVER_PORT);
         NotificationManager mNotificationManager =
                 (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         mNotificationManager.notify(6000, mBuilder.build());

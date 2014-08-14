@@ -42,7 +42,9 @@ public class MainActivity extends Activity {
     }
 
     public void startServer (View v) {
-        startService(new Intent(MainActivity.this, ServerService.class));
+        Intent startServerIntent = new Intent(MainActivity.this, ServerService.class);
+        startServerIntent.setAction("START");
+        startService(startServerIntent);
         finish();
     }
 }
