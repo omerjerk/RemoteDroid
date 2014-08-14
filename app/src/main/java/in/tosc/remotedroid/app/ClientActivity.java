@@ -118,6 +118,8 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
                             } catch (BufferOverflowException e) {
                                 showToast("Buffer Overflow = " + e.getMessage());
                                 e.printStackTrace();
+                                byteBufferList.recycle();
+                                return;
                             }
 
                             inputBuf.rewind();
