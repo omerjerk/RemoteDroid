@@ -13,12 +13,14 @@ public class SettingsActivity extends PreferenceActivity implements
 
     private EditTextPreference portNumberPref;
 
+    public static final String KEY_PORT_PREF = "port";
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         addPreferencesFromResource(R.xml.preferences);
-        portNumberPref = (EditTextPreference) findPreference("port");
-        portNumberPref.setSummary("6000");
+        portNumberPref = (EditTextPreference) findPreference(KEY_PORT_PREF);
+        portNumberPref.setSummary("The port on which the stream will be casted (default : 6000)");
     }
 
     @Override

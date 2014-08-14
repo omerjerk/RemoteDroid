@@ -7,12 +7,14 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.hardware.display.DisplayManager;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.os.Handler;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.Surface;
 import android.widget.Toast;
@@ -38,7 +40,7 @@ public class ServerService extends Service {
 
     private static final String TAG = "omerjerk";
 
-    public static final int SERVER_PORT = 6000;
+    public static int SERVER_PORT;
 
     private AsyncHttpServer server;
     private List<WebSocket> _sockets = new ArrayList<WebSocket>();
@@ -50,6 +52,7 @@ public class ServerService extends Service {
     Handler mHandler;
 
     NotificationManager mNotificationManager;
+    SharedPreferences preferences;
 
     private class ToastRunnable implements Runnable {
         String mText;
@@ -75,6 +78,8 @@ public class ServerService extends Service {
         if (server == null) {
             server = new AsyncHttpServer();
             server.websocket("/", null, websocketCallback);
+            preferences = PreferenceManager.getDefaultSharedPreferences(this);
+            SERVER_PORT = Integer.parseInt(preferences.getString(SettingsActivity.KEY_PORT_PREF, "6000"));
             server.listen(SERVER_PORT);
             mHandler = new Handler();
             mNotificationManager =
