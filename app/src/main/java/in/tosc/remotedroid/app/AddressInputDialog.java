@@ -35,6 +35,7 @@ public class AddressInputDialog extends DialogFragment {
 
         // Inflate and set the layout for the dialog
         // Pass null as the parent view because its going in the dialog layout
+        builder.setTitle("Enter server address");
         builder.setView(dialogLayout)
                 // Add action buttons
                 .setPositiveButton("Connect", new DialogInterface.OnClickListener() {

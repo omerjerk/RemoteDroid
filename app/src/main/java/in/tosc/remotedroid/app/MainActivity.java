@@ -1,11 +1,19 @@
 package in.tosc.remotedroid.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.DialogFragment;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Toast;
+import eu.chainfire.libsuperuser.Shell;
 
 
 public class MainActivity extends Activity {
@@ -14,6 +22,24 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        new AsyncTask<Void, Void, Void>() {
+            @Override
+            protected Void doInBackground(Void... voids) {
+                final boolean isRooted = Shell.SU.available();
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (isRooted) {
+                            Toast.makeText(MainActivity.this, "Device is rooted", Toast.LENGTH_SHORT).show();
+                        } else {
+                            ErrorDialog errorDialog = new ErrorDialog();
+                            errorDialog.show(getFragmentManager(), "NO_ROOT_DIALOG");
+                        }
+                    }
+                });
+                return null;
+            }
+        }.execute();
     }
 
 
@@ -37,14 +63,30 @@ public class MainActivity extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void startClient (View v) {
+    public void startClient(View v) {
         new AddressInputDialog().show(getFragmentManager(), "Address Dialog");
     }
 
-    public void startServer (View v) {
+    public void startServer(View v) {
         Intent startServerIntent = new Intent(MainActivity.this, ServerService.class);
         startServerIntent.setAction("START");
         startService(startServerIntent);
         finish();
+    }
+
+    private class ErrorDialog extends DialogFragment {
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+            builder.setTitle("Not Rooted!");
+            builder.setMessage("The device needs to be rooted for this app to use. Please exit the app.");
+            builder.setPositiveButton("Close", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+
+                }
+            });
+            return builder.create();
+        }
     }
 }
