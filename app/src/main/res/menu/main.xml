@@ -6,4 +6,8 @@
         android:orderInCategory="100"
         android:icon="@drawable/ic_action_settings"
         android:showAsAction="always" />
+    <item android:id="@+id/action_install"
+          android:title="Install to /system"
+          android:orderInCategory="100"
+          android:showAsAction="never" />
 </menu>

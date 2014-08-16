@@ -81,6 +81,10 @@ public class MainActivity extends Activity {
             startActivity(new Intent(this, SettingsActivity.class));
             return true;
         }
+        if (id == R.id.action_install) {
+            InstallDialog installDialog = new InstallDialog();
+            installDialog.show(getFragmentManager(), "INSTALL_DIALOG");
+        }
         return super.onOptionsItemSelected(item);
     }
 
