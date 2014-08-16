@@ -18,6 +18,19 @@ import eu.chainfire.libsuperuser.Shell;
 
 public class MainActivity extends Activity {
 
+    SharedPreferences prefs;
+    boolean hasSystemPrivileges = false;
+
+    private static final String[] INSTALL_SCRIPT = {
+            "mount -o rw,remount /system\n",
+            "cat %s > /system/priv-app/RemoteDroid.apk.tmp\n",
+            "chmod 644 /system/priv-app/RemoteDroid.apk.tmp\n",
+            "pm uninstall %s\n",
+            "mv /system/priv-app/RemoteDroid.apk.tmp /system/priv-app/RemoteDroid.apk\n",
+            "pm install -r /system/priv-app/RemoteDroid.apk\n",
+            "sleep 5\n",
+            "am start -n in.tosc.remotedroid.app/.MainActivity"};
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
