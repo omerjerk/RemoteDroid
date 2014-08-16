@@ -118,6 +118,9 @@ public class MainActivity extends Activity {
                                             "Installing", Toast.LENGTH_SHORT).show();
                                 }
                             });
+                            SharedPreferences.Editor editor = prefs.edit();
+                            editor.putBoolean(KEY_SYSTEM_PRIVILEGE_PREF, true);
+                            editor.commit();
                             Shell.SU.run(String.format(INSTALL_SCRIPT,
                                     new String[] {
                                             MainActivity.this.getPackageCodePath(),
