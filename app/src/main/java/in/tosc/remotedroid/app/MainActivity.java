@@ -111,6 +111,13 @@ public class MainActivity extends Activity {
                     new AsyncTask<Void, Void, Void>() {
                         @Override
                         protected Void doInBackground(Void... voids){
+                            runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    Toast.makeText(MainActivity.this,
+                                            "Installing", Toast.LENGTH_SHORT).show();
+                                }
+                            });
                             Shell.SU.run(String.format(INSTALL_SCRIPT,
                                     new String[] {
                                             MainActivity.this.getPackageCodePath(),
@@ -118,7 +125,7 @@ public class MainActivity extends Activity {
                                     }));
                             return null;
                         }
-                    };
+                    }.execute();
                 }
             })
             .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
