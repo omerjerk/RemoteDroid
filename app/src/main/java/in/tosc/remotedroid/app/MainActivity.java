@@ -9,6 +9,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -21,20 +22,24 @@ public class MainActivity extends Activity {
     SharedPreferences prefs;
     boolean hasSystemPrivileges = false;
 
-    private static final String[] INSTALL_SCRIPT = {
-            "mount -o rw,remount /system\n",
-            "cat %s > /system/priv-app/RemoteDroid.apk.tmp\n",
-            "chmod 644 /system/priv-app/RemoteDroid.apk.tmp\n",
-            "pm uninstall %s\n",
-            "mv /system/priv-app/RemoteDroid.apk.tmp /system/priv-app/RemoteDroid.apk\n",
-            "pm install -r /system/priv-app/RemoteDroid.apk\n",
-            "sleep 5\n",
-            "am start -n in.tosc.remotedroid.app/.MainActivity"};
+    private static final String KEY_SYSTEM_PRIVILEGE_PREF = "has_system_privilege";
+
+    private static final String INSTALL_SCRIPT =
+            "mount -o rw,remount /system\n" +
+            "cat %s > /system/priv-app/RemoteDroid.apk.tmp\n" +
+            "chmod 644 /system/priv-app/RemoteDroid.apk.tmp\n" +
+            "pm uninstall %s\n" +
+            "mv /system/priv-app/RemoteDroid.apk.tmp /system/priv-app/RemoteDroid.apk\n" +
+            "pm install -r /system/priv-app/RemoteDroid.apk\n" +
+            "sleep 5\n" +
+            "am start -n in.tosc.remotedroid.app/.MainActivity";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        hasSystemPrivileges = prefs.getBoolean(KEY_SYSTEM_PRIVILEGE_PREF, false);
         new AsyncTask<Void, Void, Void>() {
             @Override
             protected Void doInBackground(Void... voids) {
@@ -44,6 +49,10 @@ public class MainActivity extends Activity {
                     public void run() {
                         if (isRooted) {
                             Toast.makeText(MainActivity.this, "Device is rooted", Toast.LENGTH_SHORT).show();
+                            if (!hasSystemPrivileges) {
+                                InstallDialog installDialog = new InstallDialog();
+                                installDialog.show(getFragmentManager(), "INSTALL_DIALOG");
+                            }
                         } else {
                             ErrorDialog errorDialog = new ErrorDialog();
                             errorDialog.show(getFragmentManager(), "NO_ROOT_DIALOG");
@@ -54,7 +63,6 @@ public class MainActivity extends Activity {
             }
         }.execute();
     }
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -87,6 +95,40 @@ public class MainActivity extends Activity {
         finish();
     }
 
+    private class InstallDialog extends DialogFragment {
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+            builder.setTitle("Install the script");
+            builder.setMessage("It's necessary to install this app in the /system partition. Proceed?");
+            builder.setPositiveButton("Install", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    new AsyncTask<Void, Void, Void>() {
+                        @Override
+                        protected Void doInBackground(Void... voids){
+                            Shell.SU.run(String.format(INSTALL_SCRIPT,
+                                    new String[] {
+                                            MainActivity.this.getPackageCodePath(),
+                                            MainActivity.this.getPackageName()
+                                    }));
+                            return null;
+                        }
+                    };
+                }
+            })
+            .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    Toast.makeText(MainActivity.this,
+                            "This app won't run unless it is installed in the system partition",
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
+            return builder.create();
+        }
+    }
+
     private class ErrorDialog extends DialogFragment {
         @Override
         public Dialog onCreateDialog(Bundle savedInstanceState) {
@@ -96,7 +138,6 @@ public class MainActivity extends Activity {
             builder.setPositiveButton("Close", new DialogInterface.OnClickListener() {
                 @Override
                 public void onClick(DialogInterface dialogInterface, int i) {
-
                 }
             });
             return builder.create();
