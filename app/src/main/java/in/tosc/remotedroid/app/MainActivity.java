@@ -49,13 +49,9 @@ public class MainActivity extends Activity {
                     public void run() {
                         if (isRooted) {
                             Toast.makeText(MainActivity.this, "Device is rooted", Toast.LENGTH_SHORT).show();
-                            if (!hasSystemPrivileges) {
-                                InstallDialog installDialog = new InstallDialog();
-                                installDialog.show(getFragmentManager(), "INSTALL_DIALOG");
-                            }
                         } else {
-                            ErrorDialog errorDialog = new ErrorDialog();
-                            errorDialog.show(getFragmentManager(), "NO_ROOT_DIALOG");
+                            Toast.makeText(MainActivity.this, "Device us unrooted! You won't be able to use" +
+                                    "this device as a server", Toast.LENGTH_SHORT).show();
                         }
                     }
                 });
@@ -93,10 +89,33 @@ public class MainActivity extends Activity {
     }
 
     public void startServer(View v) {
-        Intent startServerIntent = new Intent(MainActivity.this, ServerService.class);
-        startServerIntent.setAction("START");
-        startService(startServerIntent);
-        finish();
+        new StartServerServiceDialog().show(getFragmentManager(), "Start service");
+    }
+
+    private class StartServerServiceDialog extends DialogFragment {
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+            builder.setTitle("Notice");
+            builder.setMessage("For using the server mode, the device MUST be rooted and the app MUST be installed " +
+                    "to \\system partition");
+            builder.setPositiveButton("Start Server", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    Intent startServerIntent = new Intent(MainActivity.this, ServerService.class);
+                    startServerIntent.setAction("START");
+                    startService(startServerIntent);
+                    finish();
+                }
+            });
+            builder.setNegativeButton("Install to /system", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    new InstallDialog().show(getFragmentManager(), "INSTALL_DIALOG");
+                }
+            });
+            return builder.create();
+        }
     }
 
     private class InstallDialog extends DialogFragment {
