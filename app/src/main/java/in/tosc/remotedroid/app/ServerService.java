@@ -2,7 +2,6 @@ package in.tosc.remotedroid.app;
 
 import android.annotation.TargetApi;
 import android.app.Notification;
-import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
@@ -14,9 +13,12 @@ import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.preference.PreferenceManager;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Surface;
+import android.view.WindowManager;
 import android.widget.Toast;
 import com.koushikdutta.async.ByteBufferList;
 import com.koushikdutta.async.DataEmitter;
@@ -32,7 +34,6 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-
 
 public class ServerService extends Service {
 
@@ -51,8 +52,10 @@ public class ServerService extends Service {
 
     Handler mHandler;
 
-    NotificationManager mNotificationManager;
     SharedPreferences preferences;
+
+    int deviceWidth;
+    int deviceHeight;
 
     private class ToastRunnable implements Runnable {
         String mText;
@@ -67,6 +70,37 @@ public class ServerService extends Service {
         }
     }
 
+    private class NetworkWorker implements Runnable {
+
+        MediaCodec.BufferInfo info;
+        ByteBuffer byteBuffer;
+
+        public NetworkWorker() {
+        }
+
+        public NetworkWorker(MediaCodec.BufferInfo info, ByteBuffer byteBuffer) {
+            this.info = info;
+            this.byteBuffer = byteBuffer;
+        }
+
+        @Override
+        public void run() {
+            for (WebSocket socket : _sockets) {
+                socket.send(info.offset + "," + info.size + "," +
+                        info.presentationTimeUs + "," + info.flags);
+                byte[] b = new byte[info.size];
+                try {
+                    byteBuffer.position(0);
+                    byteBuffer.get(b, 0, info.size);
+                    socket.send(b);
+                } catch (BufferUnderflowException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+    private Handler networkHandler;
+
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && intent.getAction() == "STOP") {
@@ -78,6 +112,17 @@ public class ServerService extends Service {
             stopSelf();
         }
         if (server == null && intent.getAction().equals("START")) {
+            DisplayMetrics dm = new DisplayMetrics();
+            ((WindowManager) getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getMetrics(dm);
+            deviceWidth = dm.widthPixels;
+            deviceHeight = dm.heightPixels;
+            /*
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    Looper.prepare();
+                    networkHandler = new Handler();
+                    Looper.loop();*/
             server = new AsyncHttpServer();
             server.websocket("/", null, websocketCallback);
             preferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -85,8 +130,6 @@ public class ServerService extends Service {
             updateNotification("Streaming is live at");
             server.listen(SERVER_PORT);
             mHandler = new Handler();
-            mNotificationManager =
-                    (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         }
         return START_NOT_STICKY;
     }
@@ -126,8 +169,8 @@ public class ServerService extends Service {
                         return;
                     }
                     try {
-                        float x = Float.parseFloat(parts[0]);
-                        float y = Float.parseFloat(parts[1]);
+                        float x = Float.parseFloat(parts[0]) * deviceWidth;
+                        float y = Float.parseFloat(parts[1]) * deviceHeight;
                         Process su = null;
                         DataOutputStream outputStream = null;
                         try {
@@ -162,11 +205,10 @@ public class ServerService extends Service {
     private Surface createDisplaySurface() {
         MediaFormat mMediaFormat = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
                 CodecUtils.WIDTH, CodecUtils.HEIGHT);
-        //mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 262144);
-        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1024 * 1024 / 2);
+        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1024 * 1024);
         mMediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
         mMediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-        mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1000);
+        mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
         Log.i(TAG, "Starting encoder");
         encoder = MediaCodec.createEncoderByType(CodecUtils.MIME_TYPE);
         encoder.configure(mMediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
@@ -181,7 +223,7 @@ public class ServerService extends Service {
     public void startDisplayManager() {
         DisplayManager mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
         Surface encoderInputSurface = createDisplaySurface();
-        mDisplayManager.createVirtualDisplay("Remote Droid", CodecUtils.WIDTH, CodecUtils.HEIGHT, 100,
+        mDisplayManager.createVirtualDisplay("Remote Droid", CodecUtils.WIDTH, CodecUtils.HEIGHT, 50,
                 encoderInputSurface,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC | DisplayManager.VIRTUAL_DISPLAY_FLAG_SECURE);
     }
@@ -228,13 +270,14 @@ public class ServerService extends Service {
                                 info.presentationTimeUs + "," + info.flags);
                         byte[] b = new byte[info.size];
                         try {
-                            encodedData.position(0);
-                            encodedData.get(b, 0, info.size);
+                            encodedData.position(info.offset);
+                            encodedData.get(b, info.offset, info.offset + info.size);
                             socket.send(b);
                         } catch (BufferUnderflowException e) {
                             e.printStackTrace();
                         }
                     }
+                    //networkHandler.post(new NetworkWorker(info, encodedData));
                     encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
 
                     try {
