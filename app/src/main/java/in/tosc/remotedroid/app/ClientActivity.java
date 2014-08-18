@@ -1,11 +1,16 @@
 package in.tosc.remotedroid.app;
 
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.DialogFragment;
+import android.content.DialogInterface;
 import android.location.Address;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.os.Bundle;
 import android.provider.Telephony;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
@@ -43,9 +48,16 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
 
     String address;
 
+    int deviceWidth;
+    int deviceHeight;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        DisplayMetrics dm = new DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(dm);
+        deviceWidth = dm.widthPixels;
+        deviceHeight = dm.heightPixels;
         address = getIntent().getStringExtra(AddressInputDialog.KEY_ADDRESS_EXTRA);
         hideSystemUI();
         setContentView(R.layout.activity_client);
@@ -71,6 +83,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
                 public void onCompleted(Exception e) {
                     ClientActivity.this.webSocket = null;
                     showToast("Closed");
+                    new ReconnectDialog().show(getFragmentManager(), "RECONNECT_DIALOG");
                 }
             });
             webSocket.setStringCallback(new WebSocket.StringCallback() {
@@ -95,8 +108,10 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
                 public void onDataAvailable(DataEmitter dataEmitter, ByteBufferList byteBufferList) {
                     if (true) {
                         ByteBuffer b = byteBufferList.getAll();
-                        b.position(info.offset);
-                        b.limit(info.offset + info.size);
+                        //b.position(info.offset);
+                        b.position(0);
+                        //b.limit(info.offset + info.size);
+                        b.limit(info.size);
                         if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
                             MediaFormat format =
                                     MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
@@ -113,14 +128,11 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
                         if (inputBufIndex >= 0) {
                             ByteBuffer inputBuf = decoderInputBuffers[inputBufIndex];
                             inputBuf.clear();
-                            inputBuf.limit(info.size);
+                            inputBuf.limit(info.offset + info.size);
                             byte[] buff = new byte[info.size];
                             b.get(buff, 0, info.size);
-                            //inputBuf.clear();
                             try {
                                 inputBuf.put(buff);
-
-
                             } catch (BufferOverflowException e) {
                                 showToast("Buffer Overflow = " + e.getMessage());
                                 Log.d(TAG, "Input buff capacity = " + inputBuf.capacity() + " limit = " + inputBuf.limit() + " byte size = " + buff.length);
@@ -205,7 +217,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
     @Override
     public boolean onTouch(View view, MotionEvent motionEvent) {
         if (webSocket != null) {
-            webSocket.send(motionEvent.getX() + "," + motionEvent.getY());
+            webSocket.send(motionEvent.getX() / deviceWidth + "," + motionEvent.getY() / deviceHeight);
         }
         return false;
     }
@@ -219,5 +231,26 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
                 }
             }
         }, 2000, 3000);
+    }
+
+    private class ReconnectDialog extends DialogFragment {
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+            builder.setTitle("Disconnected");
+            builder.setPositiveButton("Reconnect ?", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    AsyncHttpClient.getDefaultInstance().websocket("ws://" + address, null, websocketCallback);
+                }
+            });
+            builder.setNegativeButton("Close", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    finish();
+                }
+            });
+            return builder.create();
+        }
     }
 }

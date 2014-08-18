@@ -72,7 +72,6 @@ public class ServerService extends Service {
         if (intent != null && intent.getAction() == "STOP") {
             if (encoder != null)
                 encoder.signalEndOfInputStream();
-            mNotificationManager.cancelAll();
             server.stop();
             server = null;
             stopForeground(true);
@@ -99,9 +98,11 @@ public class ServerService extends Service {
             _sockets.add(webSocket);
             showToast("Someone just connected");
             //Start rendering display on the surface and setting up the encoder
-            startDisplayManager();
-            encoderThread = new Thread(new EncoderWorker(), "Encoder Thread");
-            encoderThread.start();
+            if (encoderThread == null) {
+                startDisplayManager();
+                encoderThread = new Thread(new EncoderWorker(), "Encoder Thread");
+                encoderThread.start();
+            }
             //Use this to clean up any references to the websocket
             webSocket.setClosedCallback(new CompletedCallback() {
                 @Override
@@ -110,10 +111,10 @@ public class ServerService extends Service {
                         if (ex != null)
                             ex.printStackTrace();
                     } finally {
-                        _sockets.remove(webSocket);
+                        _sockets.clear();
+                        showToast("Removed");
                     }
                     showToast("Disconnected");
-                    stopSelf();
                 }
             });
 
@@ -162,7 +163,7 @@ public class ServerService extends Service {
         MediaFormat mMediaFormat = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
                 CodecUtils.WIDTH, CodecUtils.HEIGHT);
         //mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 262144);
-        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1000000/4);
+        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1024 * 1024 / 2);
         mMediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
         mMediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1000);
@@ -278,8 +279,6 @@ public class ServerService extends Service {
                         .addAction(R.drawable.ic_launcher, "Stop", stopServiceIntent)
                         .setContentTitle(message)
                         .setContentText(Utils.getIPAddress(true) + ":" + SERVER_PORT);
-        NotificationManager mNotificationManager =
-                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-        mNotificationManager.notify(6000, mBuilder.build());
+        startForeground(6000, mBuilder.build());
     }
 }
