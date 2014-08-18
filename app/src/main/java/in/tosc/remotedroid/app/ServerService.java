@@ -13,7 +13,6 @@ import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.Looper;
 import android.preference.PreferenceManager;
 import android.util.DisplayMetrics;
 import android.util.Log;
@@ -41,7 +40,8 @@ public class ServerService extends Service {
 
     private static final String TAG = "omerjerk";
 
-    public static int SERVER_PORT;
+    private int serverPort;
+    private float bitrateRatio;
 
     private AsyncHttpServer server;
     private List<WebSocket> _sockets = new ArrayList<WebSocket>();
@@ -126,9 +126,10 @@ public class ServerService extends Service {
             server = new AsyncHttpServer();
             server.websocket("/", null, websocketCallback);
             preferences = PreferenceManager.getDefaultSharedPreferences(this);
-            SERVER_PORT = Integer.parseInt(preferences.getString(SettingsActivity.KEY_PORT_PREF, "6000"));
+            serverPort = Integer.parseInt(preferences.getString(SettingsActivity.KEY_PORT_PREF, "6000"));
+            bitrateRatio = Float.parseFloat(preferences.getString(SettingsActivity.KEY_BITRATE_PREF, "1"));
             updateNotification("Streaming is live at");
-            server.listen(SERVER_PORT);
+            server.listen(serverPort);
             mHandler = new Handler();
         }
         return START_NOT_STICKY;
@@ -205,7 +206,7 @@ public class ServerService extends Service {
     private Surface createDisplaySurface() {
         MediaFormat mMediaFormat = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
                 CodecUtils.WIDTH, CodecUtils.HEIGHT);
-        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 1024 * 1024);
+        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, (int) (1024 * 1024 * bitrateRatio));
         mMediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
         mMediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
@@ -321,7 +322,7 @@ public class ServerService extends Service {
                         .setOngoing(true)
                         .addAction(R.drawable.ic_launcher, "Stop", stopServiceIntent)
                         .setContentTitle(message)
-                        .setContentText(Utils.getIPAddress(true) + ":" + SERVER_PORT);
+                        .setContentText(Utils.getIPAddress(true) + ":" + serverPort);
         startForeground(6000, mBuilder.build());
     }
 }
