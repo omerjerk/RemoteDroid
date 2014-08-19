@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.DialogFragment;
 import android.content.DialogInterface;
+import android.graphics.Point;
 import android.location.Address;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
@@ -50,6 +51,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
 
     int deviceWidth;
     int deviceHeight;
+    Point videoResolution = new Point();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,6 +96,10 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
                                 Integer.parseInt(parts[1]),
                                 Long.parseLong(parts[2]),
                                 Integer.parseInt(parts[3]));
+                        if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                            videoResolution.x = Integer.parseInt(parts[4]);
+                            videoResolution.y = Integer.parseInt(parts[5]);
+                        }
                     } catch (NumberFormatException e) {
                         e.printStackTrace();
                         Log.d(TAG, "===========Exception = " + e.getMessage() + " =================");
@@ -115,7 +121,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
                         if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
                             MediaFormat format =
                                     MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
-                                            CodecUtils.WIDTH, CodecUtils.HEIGHT);
+                                            videoResolution.x, videoResolution.y);
                             format.setByteBuffer("csd-0", b);
                             decoder.configure(format, surfaceView.getHolder().getSurface(), null, 0);
                             decoder.start();

@@ -7,6 +7,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Point;
 import android.hardware.display.DisplayManager;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
@@ -16,6 +17,7 @@ import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.Display;
 import android.view.Surface;
 import android.view.WindowManager;
 import android.widget.Toast;
@@ -56,6 +58,7 @@ public class ServerService extends Service {
 
     int deviceWidth;
     int deviceHeight;
+    Point resolution = new Point();
 
     private class ToastRunnable implements Runnable {
         String mText;
@@ -112,10 +115,17 @@ public class ServerService extends Service {
             stopSelf();
         }
         if (server == null && intent.getAction().equals("START")) {
+            preferences = PreferenceManager.getDefaultSharedPreferences(this);
             DisplayMetrics dm = new DisplayMetrics();
-            ((WindowManager) getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getMetrics(dm);
+            Display mDisplay = ((WindowManager) getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
+            mDisplay.getMetrics(dm);
             deviceWidth = dm.widthPixels;
             deviceHeight = dm.heightPixels;
+            float resolutionRatio = Float.parseFloat(
+                    preferences.getString(SettingsActivity.KEY_RESOLUTION_PREF, "0.25"));
+            mDisplay.getRealSize(resolution);
+            resolution.x = (int) (resolution.x * resolutionRatio);
+            resolution.y = (int) (resolution.y * resolutionRatio);
             /*
             new Thread(new Runnable() {
                 @Override
@@ -125,7 +135,6 @@ public class ServerService extends Service {
                     Looper.loop();*/
             server = new AsyncHttpServer();
             server.websocket("/", null, websocketCallback);
-            preferences = PreferenceManager.getDefaultSharedPreferences(this);
             serverPort = Integer.parseInt(preferences.getString(SettingsActivity.KEY_PORT_PREF, "6000"));
             bitrateRatio = Float.parseFloat(preferences.getString(SettingsActivity.KEY_BITRATE_PREF, "1"));
             updateNotification("Streaming is live at");
@@ -205,7 +214,7 @@ public class ServerService extends Service {
     @TargetApi(19)
     private Surface createDisplaySurface() {
         MediaFormat mMediaFormat = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
-                CodecUtils.WIDTH, CodecUtils.HEIGHT);
+                resolution.x, resolution.y);
         mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, (int) (1024 * 1024 * bitrateRatio));
         mMediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
         mMediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
@@ -224,7 +233,7 @@ public class ServerService extends Service {
     public void startDisplayManager() {
         DisplayManager mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
         Surface encoderInputSurface = createDisplaySurface();
-        mDisplayManager.createVirtualDisplay("Remote Droid", CodecUtils.WIDTH, CodecUtils.HEIGHT, 50,
+        mDisplayManager.createVirtualDisplay("Remote Droid", resolution.x, resolution.y, 50,
                 encoderInputSurface,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC | DisplayManager.VIRTUAL_DISPLAY_FLAG_SECURE);
     }
@@ -267,8 +276,15 @@ public class ServerService extends Service {
                         return;
                     }
                     for (WebSocket socket : _sockets) {
-                        socket.send(info.offset + "," + info.size + "," +
-                                info.presentationTimeUs + "," + info.flags);
+                        if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                            socket.send(info.offset + "," + info.size + "," +
+                                    info.presentationTimeUs + "," + info.flags + "," +
+                                    resolution.x + "," + resolution.y);
+                        } else {
+                            socket.send(info.offset + "," + info.size + "," +
+                                    info.presentationTimeUs + "," + info.flags);
+                        }
+
                         byte[] b = new byte[info.size];
                         try {
                             encodedData.position(info.offset);

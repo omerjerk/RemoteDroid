@@ -15,12 +15,17 @@
     </PreferenceCategory>
 
     <PreferenceCategory
-            android:title="Video"
+            android:title="Video Streaming"
             android:key="pref_video">
 
         <ListPreference
                 android:key="bitrate"
                 android:title="Bitrate"
+                android:summary="Keep it low for slow internet connection" />
+
+        <ListPreference
+                android:key="resolution"
+                android:title="Video resolution"
                 android:summary="Keep it low for slow internet connection" />
     </PreferenceCategory>
 </PreferenceScreen>
