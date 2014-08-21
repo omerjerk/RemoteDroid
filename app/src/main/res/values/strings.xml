@@ -8,5 +8,9 @@
     <string name="title_activity_server">Server Activity</string>
     <string name="description_server">Choose this to cast the display of this device to a client.</string>
     <string name="description_client">Choose this to get the display of some other device.</string>
+    <string name="note_1">1. As of now it\'ll work ONLY on a local network.</string>
+    <string name="note_2">2. Start the server first, ONLY then start the client.</string>
+    <string name="note_3">3. Try creating hotspot on one device and connect the other device using WiFi.</string>
+    <string name="note_4">4. The server app will ONLY work on a rooted KitKat device and the app must be installed to /system.</string>
 
 </resources>
