@@ -3,6 +3,8 @@ RemoteDroid
 
 App to control your android device from another android device over the internet connection
 
+**Live on Play Store :** https://play.google.com/store/apps/details?id=in.omerjerk.remotedroid.app
+
 **Demo :** https://www.youtube.com/watch?v=ZdNcBAp0yeo
 
 ##Licensed under GPLv3##
