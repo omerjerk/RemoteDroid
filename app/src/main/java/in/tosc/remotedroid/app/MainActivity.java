@@ -41,24 +41,26 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
         hasSystemPrivileges = prefs.getBoolean(KEY_SYSTEM_PRIVILEGE_PREF, false);
-        new AsyncTask<Void, Void, Void>() {
-            @Override
-            protected Void doInBackground(Void... voids) {
-                final boolean isRooted = Shell.SU.available();
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (isRooted) {
-                            Toast.makeText(MainActivity.this, "Device is rooted", Toast.LENGTH_SHORT).show();
-                        } else {
-                            Toast.makeText(MainActivity.this, "Device us unrooted! You won't be able to use" +
-                                    "this device as a server", Toast.LENGTH_SHORT).show();
+        if (savedInstanceState == null) {
+            new AsyncTask<Void, Void, Void>() {
+                @Override
+                protected Void doInBackground(Void... voids) {
+                    final boolean isRooted = Shell.SU.available();
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (isRooted) {
+                                Toast.makeText(MainActivity.this, "Device is rooted", Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(MainActivity.this, "Device us unrooted! You won't be able to use" +
+                                        "this device as a server", Toast.LENGTH_SHORT).show();
+                            }
                         }
-                    }
-                });
-                return null;
-            }
-        }.execute();
+                    });
+                    return null;
+                }
+            }.execute();
+        }
     }
 
     @Override
