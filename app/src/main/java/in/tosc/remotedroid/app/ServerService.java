@@ -336,7 +336,7 @@ public class ServerService extends Service {
                 new Notification.Builder(this)
                         .setSmallIcon(R.drawable.ic_launcher)
                         .setOngoing(true)
-                        .addAction(R.drawable.ic_launcher, "Stop", stopServiceIntent)
+                        .addAction(R.drawable.ic_media_stop, "Stop", stopServiceIntent)
                         .setContentTitle(message)
                         .setContentText(Utils.getIPAddress(true) + ":" + serverPort);
         startForeground(6000, mBuilder.build());
