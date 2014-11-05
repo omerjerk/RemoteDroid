@@ -1,4 +1,4 @@
-package in.tosc.remotedroid.app;
+package in.omerjerk.remotedroid.app;
 
 import org.apache.http.conn.util.InetAddressUtils;
 

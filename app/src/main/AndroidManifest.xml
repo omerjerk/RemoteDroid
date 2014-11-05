@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="in.tosc.remotedroid.app" >
+    package="in.omerjerk.remotedroid.app" >
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAPTURE_VIDEO_OUTPUT" />
@@ -9,12 +9,13 @@
     <uses-permission android:name="android.permission.INJECT_EVENTS" />
 
     <application
+        android:debuggable="false"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
         <activity
-            android:name="in.tosc.remotedroid.app.MainActivity"
+            android:name="in.omerjerk.remotedroid.app.MainActivity"
             android:label="@string/app_name" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -23,21 +24,21 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="in.tosc.remotedroid.app.ClientActivity"
+            android:name="in.omerjerk.remotedroid.app.ClientActivity"
             android:label="@string/title_activity_client" >
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="MainActivity" />
         </activity>
         <service
-            android:name=".ServerService"
+            android:name="in.omerjerk.remotedroid.app.ServerService"
             android:exported="true"
             android:label="@string/title_activity_server" >
         </service>
         <activity
-            android:name="in.tosc.remotedroid.app.SettingsActivity"
+            android:name="in.omerjerk.remotedroid.app.SettingsActivity"
             android:label="Settings"
-            android:parentActivityName="in.tosc.remotedroid.app.MainActivity" >
+            android:parentActivityName="in.omerjerk.remotedroid.app.MainActivity" >
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
                 android:value="MainActivity" />

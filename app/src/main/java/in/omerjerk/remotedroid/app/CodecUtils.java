@@ -1,4 +1,4 @@
-package in.tosc.remotedroid.app;
+package in.omerjerk.remotedroid.app;
 
 import android.media.MediaCodecInfo;
 import android.media.MediaCodecList;

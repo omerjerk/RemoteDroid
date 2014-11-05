@@ -1,4 +1,4 @@
-package in.tosc.remotedroid.app;
+package in.omerjerk.remotedroid.app;
 
 import android.annotation.TargetApi;
 import android.app.Notification;

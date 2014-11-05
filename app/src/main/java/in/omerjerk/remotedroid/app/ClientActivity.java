@@ -1,4 +1,4 @@
-package in.tosc.remotedroid.app;
+package in.omerjerk.remotedroid.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
