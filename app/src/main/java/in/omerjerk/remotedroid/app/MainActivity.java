@@ -1,5 +1,6 @@
 package in.omerjerk.remotedroid.app;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -95,6 +96,7 @@ public class MainActivity extends Activity {
         new StartServerServiceDialog().show(getFragmentManager(), "Start service");
     }
 
+    @SuppressLint("ValidFragment")
     private class StartServerServiceDialog extends DialogFragment {
         @Override
         public Dialog onCreateDialog(Bundle savedInstanceState) {
@@ -121,6 +123,7 @@ public class MainActivity extends Activity {
         }
     }
 
+    @SuppressLint("ValidFragment")
     private class InstallDialog extends DialogFragment {
         @Override
         public Dialog onCreateDialog(Bundle savedInstanceState) {
@@ -165,6 +168,7 @@ public class MainActivity extends Activity {
         }
     }
 
+    @SuppressLint("ValidFragment")
     private class ErrorDialog extends DialogFragment {
         @Override
         public Dialog onCreateDialog(Bundle savedInstanceState) {

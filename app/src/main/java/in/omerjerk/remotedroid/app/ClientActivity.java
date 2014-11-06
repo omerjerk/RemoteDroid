@@ -1,5 +1,6 @@
 package in.omerjerk.remotedroid.app;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
@@ -239,6 +240,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
         }, 2000, 3000);
     }
 
+    @SuppressLint("ValidFragment")
     private class ReconnectDialog extends DialogFragment {
         @Override
         public Dialog onCreateDialog(Bundle savedInstanceState) {
