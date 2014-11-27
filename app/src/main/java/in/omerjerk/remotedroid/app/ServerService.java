@@ -26,8 +26,8 @@ import com.koushikdutta.async.DataEmitter;
 import com.koushikdutta.async.callback.CompletedCallback;
 import com.koushikdutta.async.callback.DataCallback;
 import com.koushikdutta.async.http.WebSocket;
-import com.koushikdutta.async.http.libcore.RequestHeaders;
 import com.koushikdutta.async.http.server.AsyncHttpServer;
+import com.koushikdutta.async.http.server.AsyncHttpServerRequest;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -147,7 +147,7 @@ public class ServerService extends Service {
     private AsyncHttpServer.WebSocketRequestCallback websocketCallback = new AsyncHttpServer.WebSocketRequestCallback() {
 
         @Override
-        public void onConnected(final WebSocket webSocket, RequestHeaders requestHeaders) {
+        public void onConnected(final WebSocket webSocket, AsyncHttpServerRequest request) {
             _sockets.add(webSocket);
             showToast("Someone just connected");
             //Start rendering display on the surface and setting up the encoder
