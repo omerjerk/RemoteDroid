@@ -12,6 +12,8 @@ import android.view.LayoutInflater;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 
+import in.tosc.remotedroid.R;
+
 /**
  * Created by omerjerk on 14/8/14.
  */

@@ -36,6 +36,8 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+import in.tosc.remotedroid.R;
+
 public class ServerService extends Service {
 
     private MediaCodec encoder = null;

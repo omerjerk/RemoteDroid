@@ -7,11 +7,9 @@ import android.app.Dialog;
 import android.app.DialogFragment;
 import android.content.DialogInterface;
 import android.graphics.Point;
-import android.location.Address;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
 import android.os.Bundle;
-import android.provider.Telephony;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -26,11 +24,12 @@ import com.koushikdutta.async.http.WebSocket;
 import com.koushikdutta.async.callback.DataCallback;
 import com.koushikdutta.async.http.AsyncHttpClient;
 
-import java.nio.Buffer;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import in.tosc.remotedroid.R;
 
 
 public class ClientActivity extends Activity implements SurfaceHolder.Callback, View.OnTouchListener{

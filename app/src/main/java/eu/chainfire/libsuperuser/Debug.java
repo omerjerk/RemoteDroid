@@ -18,7 +18,7 @@ package eu.chainfire.libsuperuser;
 
 import android.os.Looper;
 import android.util.Log;
-import in.omerjerk.remotedroid.app.BuildConfig;
+import in.tosc.remotedroid.BuildConfig;
 
 /**
  * Utility class for logging and debug features that (by default) does nothing when not in debug mode

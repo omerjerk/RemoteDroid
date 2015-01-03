@@ -6,8 +6,8 @@ import android.os.Bundle;
 import android.preference.EditTextPreference;
 import android.preference.ListPreference;
 import android.preference.PreferenceActivity;
-import android.util.DisplayMetrics;
-import android.view.Display;
+
+import in.tosc.remotedroid.R;
 
 /**
  * Created by omerjerk on 26/7/14.
