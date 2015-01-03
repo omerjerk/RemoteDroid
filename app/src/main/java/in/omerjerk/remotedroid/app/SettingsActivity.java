@@ -18,10 +18,12 @@ public class SettingsActivity extends PreferenceActivity implements
     private EditTextPreference portNumberPref;
     private ListPreference bitratePref;
     private ListPreference resolutionPref;
+    private ListPreference layerPref;
 
     public static final String KEY_PORT_PREF = "port";
     public static final String KEY_BITRATE_PREF = "bitrate";
     public static final String KEY_RESOLUTION_PREF = "resolution";
+    public static final String KEY_LAYER_PREF = "layer";
 
     private static final String[] bitrateOptions = {"256 Kbps", "512 Kbps", "1 Mbps", "2 Mbps"};
     private static final String[] bitrateValues = {"0.25", "0.5", "1", "2"};
@@ -30,6 +32,11 @@ public class SettingsActivity extends PreferenceActivity implements
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         addPreferencesFromResource(R.xml.preferences);
+
+        layerPref = (ListPreference) findPreference(KEY_LAYER_PREF);
+        layerPref.setEntries(new String[] {"C++", "Java"});
+        layerPref.setEntryValues(new String[] {"c++", "java"});
+
         portNumberPref = (EditTextPreference) findPreference(KEY_PORT_PREF);
         portNumberPref.setSummary("The port on which the stream will be casted (default : 6000)");
 

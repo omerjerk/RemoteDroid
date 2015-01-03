@@ -214,7 +214,7 @@ public class ServerService extends Service {
     };
 
     @TargetApi(19)
-    private Surface createDisplaySurface() {
+    private Surface createDisplaySurface() throws IOException {
         MediaFormat mMediaFormat = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
                 resolution.x, resolution.y);
         mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, (int) (1024 * 1024 * bitrateRatio));
@@ -234,7 +234,12 @@ public class ServerService extends Service {
     @TargetApi(19)
     public void startDisplayManager() {
         DisplayManager mDisplayManager = (DisplayManager) getSystemService(Context.DISPLAY_SERVICE);
-        Surface encoderInputSurface = createDisplaySurface();
+        Surface encoderInputSurface = null;
+        try {
+            encoderInputSurface = createDisplaySurface();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         mDisplayManager.createVirtualDisplay("Remote Droid", resolution.x, resolution.y, 50,
                 encoderInputSurface,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC | DisplayManager.VIRTUAL_DISPLAY_FLAG_SECURE);

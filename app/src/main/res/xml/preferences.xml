@@ -3,6 +3,15 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <PreferenceCategory
+        android:title="Core"
+        android:key="pref_core">
+        <ListPreference
+            android:title="Encoding/Decoding layer"
+            android:summary="C++ is in beta state"
+            android:key="layer" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
             android:title="Network"
             android:key="pref_network">
 

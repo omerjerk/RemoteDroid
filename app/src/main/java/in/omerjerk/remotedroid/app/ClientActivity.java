@@ -24,6 +24,7 @@ import com.koushikdutta.async.http.WebSocket;
 import com.koushikdutta.async.callback.DataCallback;
 import com.koushikdutta.async.http.AsyncHttpClient;
 
+import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Timer;
@@ -208,8 +209,12 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
 
     @Override
     public void surfaceCreated(SurfaceHolder surfaceHolder) {
-        decoder = MediaCodec.createDecoderByType(CodecUtils.MIME_TYPE);
-        AsyncHttpClient.getDefaultInstance().websocket("ws://" + address, null, websocketCallback);
+        try {
+            decoder = MediaCodec.createDecoderByType(CodecUtils.MIME_TYPE);
+            AsyncHttpClient.getDefaultInstance().websocket("ws://" + address, null, websocketCallback);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
