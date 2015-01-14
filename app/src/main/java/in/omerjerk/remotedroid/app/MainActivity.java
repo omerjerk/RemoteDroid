@@ -110,7 +110,7 @@ public class MainActivity extends Activity {
                     Intent startServerIntent = new Intent(MainActivity.this, ServerService.class);
                     startServerIntent.setAction("START");
                     startService(startServerIntent);
-                    finish();
+                    //finish();
                 }
             });
             builder.setNegativeButton("Install to /system", new DialogInterface.OnClickListener() {

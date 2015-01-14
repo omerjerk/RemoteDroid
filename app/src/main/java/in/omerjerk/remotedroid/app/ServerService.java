@@ -7,6 +7,7 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.hardware.display.DisplayManager;
 import android.media.MediaCodec;
@@ -18,8 +19,12 @@ import android.preference.PreferenceManager;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
+import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.Surface;
 import android.view.SurfaceView;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Toast;
 import com.koushikdutta.async.ByteBufferList;
@@ -62,6 +67,9 @@ public class ServerService extends Service {
     int deviceWidth;
     int deviceHeight;
     Point resolution = new Point();
+
+    private static final boolean LOCAL_DEBUG = true;
+    VideoWindow videoWindow = null;
 
     private class ToastRunnable implements Runnable {
         String mText;
@@ -136,12 +144,32 @@ public class ServerService extends Service {
                     Looper.prepare();
                     networkHandler = new Handler();
                     Looper.loop();*/
-            server = new AsyncHttpServer();
-            server.websocket("/", null, websocketCallback);
-            serverPort = Integer.parseInt(preferences.getString(SettingsActivity.KEY_PORT_PREF, "6000"));
-            bitrateRatio = Float.parseFloat(preferences.getString(SettingsActivity.KEY_BITRATE_PREF, "1"));
-            updateNotification("Streaming is live at");
-            server.listen(serverPort);
+            if (!LOCAL_DEBUG) {
+                server = new AsyncHttpServer();
+                server.websocket("/", null, websocketCallback);
+                serverPort = Integer.parseInt(preferences.getString(SettingsActivity.KEY_PORT_PREF, "6000"));
+                bitrateRatio = Float.parseFloat(preferences.getString(SettingsActivity.KEY_BITRATE_PREF, "1"));
+                updateNotification("Streaming is live at");
+                server.listen(serverPort);
+            } else {
+                final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                        WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY,
+                                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
+                                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
+                                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH);
+
+                params.gravity = Gravity.BOTTOM | Gravity.LEFT;
+                params.height = WindowManager.LayoutParams.WRAP_CONTENT;
+                params.width = WindowManager.LayoutParams.WRAP_CONTENT;
+
+                WindowManager windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
+                LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                VideoWindow videoWindow = (VideoWindow) inflater.inflate(R.layout.video_window, null);
+                windowManager.addView(videoWindow, params);
+                videoWindow.inflateSurfaceView();
+            }
+
             mHandler = new Handler();
         }
         return START_NOT_STICKY;
@@ -283,25 +311,32 @@ public class ServerService extends Service {
                         Log.d(TAG, "============It's NULL. BREAK!=============");
                         return;
                     }
-                    for (WebSocket socket : _sockets) {
-                        if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                            socket.send(info.offset + "," + info.size + "," +
-                                    info.presentationTimeUs + "," + info.flags + "," +
-                                    resolution.x + "," + resolution.y);
-                        } else {
-                            socket.send(info.offset + "," + info.size + "," +
-                                    info.presentationTimeUs + "," + info.flags);
-                        }
+                    if (!LOCAL_DEBUG) {
+                        for (WebSocket socket : _sockets) {
+                            if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                                socket.send(info.offset + "," + info.size + "," +
+                                        info.presentationTimeUs + "," + info.flags + "," +
+                                        resolution.x + "," + resolution.y);
+                            } else {
+                                socket.send(info.offset + "," + info.size + "," +
+                                        info.presentationTimeUs + "," + info.flags);
+                            }
 
-                        byte[] b = new byte[info.size];
-                        try {
-                            encodedData.position(info.offset);
-                            encodedData.get(b, info.offset, info.offset + info.size);
-                            socket.send(b);
-                        } catch (BufferUnderflowException e) {
-                            e.printStackTrace();
+                            byte[] b = new byte[info.size];
+                            try {
+                                encodedData.position(info.offset);
+                                encodedData.get(b, info.offset, info.offset + info.size);
+                                socket.send(b);
+                            } catch (BufferUnderflowException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    } else {
+                        if (videoWindow != null) {
+                            videoWindow.setData(encodedData, info);
                         }
                     }
+
                     //networkHandler.post(new NetworkWorker(info, encodedData));
                     encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
                 }
