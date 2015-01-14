@@ -159,15 +159,20 @@ public class ServerService extends Service {
                                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
                                 WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH);
 
-                params.gravity = Gravity.BOTTOM | Gravity.LEFT;
+                params.gravity = Gravity.TOP | Gravity.LEFT;
                 params.height = WindowManager.LayoutParams.WRAP_CONTENT;
                 params.width = WindowManager.LayoutParams.WRAP_CONTENT;
 
                 WindowManager windowManager = (WindowManager) getSystemService(WINDOW_SERVICE);
                 LayoutInflater inflater = (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-                VideoWindow videoWindow = (VideoWindow) inflater.inflate(R.layout.video_window, null);
+                videoWindow = (VideoWindow) inflater.inflate(R.layout.video_window, null);
                 windowManager.addView(videoWindow, params);
                 videoWindow.inflateSurfaceView();
+
+                if (encoderThread == null) {
+                    encoderThread = new Thread(new EncoderWorker(), "Encoder Thread");
+                    encoderThread.start();
+                }
             }
 
             mHandler = new Handler();
@@ -245,8 +250,8 @@ public class ServerService extends Service {
     @TargetApi(19)
     private Surface createDisplaySurface() throws IOException {
         MediaFormat mMediaFormat = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
-                resolution.x, resolution.y);
-        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, (int) (1024 * 1024 * bitrateRatio));
+                CodecUtils.WIDTH, CodecUtils.HEIGHT);
+        mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, (int) (1024 * 1024 * 0.5));
         mMediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
         mMediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
@@ -255,8 +260,6 @@ public class ServerService extends Service {
         encoder.configure(mMediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
 
         Surface surface = encoder.createInputSurface();
-
-        encoder.start();
         return surface;
     }
 
@@ -269,9 +272,10 @@ public class ServerService extends Service {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        mDisplayManager.createVirtualDisplay("Remote Droid", resolution.x, resolution.y, 50,
+        mDisplayManager.createVirtualDisplay("Remote Droid", CodecUtils.WIDTH, CodecUtils.HEIGHT, 50,
                 encoderInputSurface,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC | DisplayManager.VIRTUAL_DISPLAY_FLAG_SECURE);
+        encoder.start();
     }
 
     @TargetApi(19)
@@ -279,6 +283,7 @@ public class ServerService extends Service {
 
         @Override
         public void run() {
+            startDisplayManager();
             ByteBuffer[] encoderOutputBuffers = encoder.getOutputBuffers();
 
             boolean encoderDone = false;
@@ -333,19 +338,30 @@ public class ServerService extends Service {
                         }
                     } else {
                         if (videoWindow != null) {
-                            videoWindow.setData(encodedData, info);
+                            videoWindow.setData(CodecUtils.clone(encodedData), info);
+                            if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                                new Thread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        videoWindow.doDecoderThingie();
+                                    }
+                                }).start();
+
+                            }
+                            Log.d(TAG, "Setting data");
                         }
                     }
 
                     //networkHandler.post(new NetworkWorker(info, encodedData));
                     encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
+
+                    try {
+                        encoder.releaseOutputBuffer(encoderStatus, false);
+                    } catch (IllegalStateException e) {
+                        e.printStackTrace();
+                    }
                 }
-                try {
-                    encoder.releaseOutputBuffer(encoderStatus, false);
-                } catch (IllegalStateException e) {
-                    e.printStackTrace();
-                    break;
-                }
+
             }
         }
     }

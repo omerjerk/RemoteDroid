@@ -2,6 +2,7 @@ package in.omerjerk.remotedroid.app;
 
 import android.content.Context;
 import android.media.MediaCodec;
+import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -24,8 +25,8 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
 
     SurfaceView surfaceView;
 
-    private int mWidth = 1080;
-    private int mHeight = 1920;
+    private int mWidth = CodecUtils.WIDTH;
+    private int mHeight = CodecUtils.HEIGHT;
 
     MediaCodec decoder;
     ByteBuffer[] decoderInputBuffers = null;
@@ -80,19 +81,25 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
 
     }
 
-    private void doDecoderThingie() {
+    public void doDecoderThingie() {
         boolean outputDone = false;
         while (!outputDone) {
             if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                Log.d(TAG, "Configuring Decoder");
                 MediaFormat format =
                         MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE, mWidth, mHeight);
                 format.setByteBuffer("csd-0", encodedFrames);
+//                format.setInteger(MediaFormat.KEY_BIT_RATE, (int) (1024 * 1024 * 0.5));
+//                format.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
+//                format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
+//                format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
                 decoder.configure(format, surfaceView.getHolder().getSurface(),
                         null, 0);
                 decoder.start();
                 decoderInputBuffers = decoder.getInputBuffers();
                 decoderOutputBuffers = decoder.getOutputBuffers();
                 decoderConfigured = true;
+                Log.d(TAG, "decoder configured (" + info.size + " bytes)");
             } else {
                 int inputBufIndex = decoder.dequeueInputBuffer(-1);
                 ByteBuffer inputBuf = decoderInputBuffers[inputBufIndex];
