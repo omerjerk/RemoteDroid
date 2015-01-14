@@ -19,6 +19,7 @@ import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
 import android.view.Surface;
+import android.view.SurfaceView;
 import android.view.WindowManager;
 import android.widget.Toast;
 import com.koushikdutta.async.ByteBufferList;
@@ -303,13 +304,12 @@ public class ServerService extends Service {
                     }
                     //networkHandler.post(new NetworkWorker(info, encodedData));
                     encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
-
-                    try {
-                        encoder.releaseOutputBuffer(encoderStatus, false);
-                    } catch (IllegalStateException e) {
-                        e.printStackTrace();
-                        break;
-                    }
+                }
+                try {
+                    encoder.releaseOutputBuffer(encoderStatus, false);
+                } catch (IllegalStateException e) {
+                    e.printStackTrace();
+                    break;
                 }
             }
         }
