@@ -48,8 +48,8 @@ import java.nio.ByteBuffer;
  * When we're told to save a snapshot, we create a MediaMuxer, write all the frames out,
  * and then go back to what we were doing.
  */
-public class CircularEncoder {
-    private static final String TAG = CircularEncoder.class.getName();
+public class CircularEncoderDecoder {
+    private static final String TAG = CircularEncoderDecoder.class.getName();
     private static final boolean VERBOSE = false;
 
     private static final String MIME_TYPE = "video/avc";    // H.264 Advanced Video Coding
@@ -88,8 +88,8 @@ public class CircularEncoder {
      * @param frameRate Expected frame rate.
      * @param desiredSpanSec How many seconds of video we want to have in our buffer at any time.
      */
-    public CircularEncoder(int width, int height, int bitRate, int frameRate, int desiredSpanSec,
-            Callback cb) throws IOException {
+    public CircularEncoderDecoder(int width, int height, int bitRate, int frameRate, int desiredSpanSec,
+                                  Callback cb) throws IOException {
         // The goal is to size the buffer so that we can accumulate N seconds worth of video,
         // where N is passed in as "desiredSpanSec".  If the codec generates data at roughly
         // the requested bit rate, we can compute it as time * bitRate / bitsPerByte.
@@ -218,14 +218,14 @@ public class CircularEncoder {
 
         private EncoderHandler mHandler;
         private CircularEncoderBuffer mEncBuffer;
-        private CircularEncoder.Callback mCallback;
+        private CircularEncoderDecoder.Callback mCallback;
         private int mFrameNum;
 
         private final Object mLock = new Object();
         private volatile boolean mReady = false;
 
         public EncoderThread(MediaCodec mediaCodec, CircularEncoderBuffer encBuffer,
-                CircularEncoder.Callback callback) {
+                CircularEncoderDecoder.Callback callback) {
             mEncoder = mediaCodec;
             mEncBuffer = encBuffer;
             mCallback = callback;
@@ -355,7 +355,7 @@ public class CircularEncoder {
         /**
          * Drains the encoder output.
          * <p>
-         * See notes for {@link CircularEncoder#frameAvailableSoon()}.
+         * See notes for {@link CircularEncoderDecoder#frameAvailableSoon()}.
          */
         void frameAvailableSoon() {
             if (VERBOSE) Log.d(TAG, "frameAvailableSoon");
@@ -420,6 +420,10 @@ public class CircularEncoder {
                 Log.d(TAG, "muxer stopped, result=" + result);
             }
             mCallback.fileSaveComplete(result);
+        }
+
+        void decode() {
+
         }
 
         /**

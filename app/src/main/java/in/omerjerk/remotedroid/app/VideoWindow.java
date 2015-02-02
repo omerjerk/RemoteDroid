@@ -11,6 +11,8 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.widget.LinearLayout;
 
+import com.android.grafika.CircularEncoderBuffer;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -31,16 +33,10 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
     MediaCodec decoder;
     ByteBuffer[] decoderInputBuffers = null;
     ByteBuffer[] decoderOutputBuffers = null;
-    MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
     MediaFormat decoderOutputFormat = null;
-    int generateIndex = 0;
-    int checkIndex = 0;
-    int badFrames = 0;
     boolean decoderConfigured = false;
 
-    byte[] frameData = new byte[mWidth * mHeight * 3 / 2];
-
-    ByteBuffer encodedFrames;
+    CircularEncoderBuffer encBuffer;
 
     private static final String TAG = "VideoWindow";
 
@@ -60,6 +56,7 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
     public void inflateSurfaceView() {
         surfaceView = (SurfaceView) findViewById(R.id.demo_surface_view);
         surfaceView.getHolder().addCallback(this);
+        encBuffer = new CircularEncoderBuffer((int)(1024 * 1024 * 0.5), 15, 5);
     }
 
     @Override
@@ -83,7 +80,16 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
 
     public void doDecoderThingie() {
         boolean outputDone = false;
+
+        int index = encBuffer.getFirstIndex();
+        if (index < 0) {
+            Log.e(TAG, "CircularBuffer Error");
+            return;
+        }
+        ByteBuffer encodedFrames;
+        MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
         while (!outputDone) {
+            encodedFrames = encBuffer.getChunk(index, info);
             if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
                 Log.d(TAG, "Configuring Decoder");
                 MediaFormat format =
@@ -101,6 +107,9 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
                 decoderConfigured = true;
                 Log.d(TAG, "decoder configured (" + info.size + " bytes)");
             } else {
+                Log.d(TAG, "Decoder not configured. Skipping");
+                if (!decoderConfigured)
+                    continue;
                 int inputBufIndex = decoder.dequeueInputBuffer(-1);
                 ByteBuffer inputBuf = decoderInputBuffers[inputBufIndex];
                 inputBuf.clear();
@@ -139,7 +148,6 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
     }
 
     public void setData(ByteBuffer encodedFrames, MediaCodec.BufferInfo info) {
-        this.encodedFrames = encodedFrames;
-        this.info = info;
+        encBuffer.add(encodedFrames, info.flags, info.presentationTimeUs);
     }
 }

@@ -110,7 +110,6 @@ public class CircularEncoderBuffer {
      *
      * @param buf The data.  Set position() to the start offset and limit() to position+size.
      *     The position and limit may be altered by this method.
-     * @param size Number of bytes in the packet.
      * @param flags MediaCodec.BufferInfo flags.
      * @param ptsUsec Presentation time stamp, in microseconds.
      */

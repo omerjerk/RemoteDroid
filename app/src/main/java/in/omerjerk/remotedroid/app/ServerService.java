@@ -27,6 +27,7 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Toast;
+
 import com.koushikdutta.async.ByteBufferList;
 import com.koushikdutta.async.DataEmitter;
 import com.koushikdutta.async.callback.CompletedCallback;
@@ -79,7 +80,7 @@ public class ServerService extends Service {
         }
 
         @Override
-        public void run(){
+        public void run() {
             Toast.makeText(getApplicationContext(), mText, Toast.LENGTH_SHORT).show();
         }
     }
@@ -113,6 +114,7 @@ public class ServerService extends Service {
             }
         }
     }
+
     private Handler networkHandler;
 
     @Override
@@ -154,7 +156,7 @@ public class ServerService extends Service {
             } else {
                 final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                         WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY,
-                                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
+                        WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
                                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
                                 WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
                                 WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH);
@@ -329,27 +331,30 @@ public class ServerService extends Service {
 
                             byte[] b = new byte[info.size];
                             try {
-                                encodedData.position(info.offset);
-                                encodedData.get(b, info.offset, info.offset + info.size);
-                                socket.send(b);
+                                if (info.size != 0) {
+                                    encodedData.position(info.offset);
+                                    encodedData.get(b, info.offset, info.offset + info.size);
+                                    socket.send(b);
+                                }
+
                             } catch (BufferUnderflowException e) {
                                 e.printStackTrace();
                             }
                         }
                     } else {
-                        if (videoWindow != null) {
-                            videoWindow.setData(CodecUtils.clone(encodedData), info);
-                            if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                                new Thread(new Runnable() {
-                                    @Override
-                                    public void run() {
-                                        videoWindow.doDecoderThingie();
-                                    }
-                                }).start();
+                        videoWindow.setData(CodecUtils.clone(encodedData), info);
 
-                            }
-                            Log.d(TAG, "Setting data");
+                        if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                            new Thread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    videoWindow.doDecoderThingie();
+                                }
+                            }).start();
+
                         }
+                        Log.d(TAG, "Setting data");
+//                        }
                     }
 
                     //networkHandler.post(new NetworkWorker(info, encodedData));
