@@ -30,7 +30,7 @@ import java.nio.ByteBuffer;
  * Not thread-safe.
  */
 public class CircularEncoderBuffer {
-    private static final String TAG = CircularEncoderBuffer.class.getName();
+    private static final String TAG = "CircularEncoderBuffer";
     private static final boolean EXTRA_DEBUG = true;
     private static final boolean VERBOSE = false;
 
@@ -177,6 +177,15 @@ public class CircularEncoderBuffer {
         return index;
     }
 
+    public int getNextIntCustom(int index) throws InterruptedException {
+        int next = getNextIndex(index);
+        while (next == -1) {
+            next = getNextIndex(index);
+            Thread.sleep(100);
+        }
+        return next;
+    }
+
     /**
      * Returns the index of the next packet, or -1 if we've reached the end.
      */
@@ -200,6 +209,8 @@ public class CircularEncoderBuffer {
         final int dataLen = mDataBuffer.length;
         int packetStart = mPacketStart[index];
         int length = mPacketLength[index];
+
+        Log.d(TAG, "packetStart = " + packetStart + " length = " + length);
 
         info.flags = mPacketFlags[index];
         info.offset = packetStart;

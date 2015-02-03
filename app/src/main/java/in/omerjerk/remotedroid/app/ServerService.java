@@ -254,7 +254,7 @@ public class ServerService extends Service {
         MediaFormat mMediaFormat = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
                 CodecUtils.WIDTH, CodecUtils.HEIGHT);
         mMediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, (int) (1024 * 1024 * 0.5));
-        mMediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
+        mMediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, 30);
         mMediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
         mMediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
         Log.i(TAG, "Starting encoder");
@@ -342,6 +342,10 @@ public class ServerService extends Service {
                             }
                         }
                     } else {
+                        if (info.size != 0) {
+                            encodedData.position(info.offset);
+                            encodedData.limit(info.offset + info.size);
+                        }
                         videoWindow.setData(CodecUtils.clone(encodedData), info);
 
                         if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {

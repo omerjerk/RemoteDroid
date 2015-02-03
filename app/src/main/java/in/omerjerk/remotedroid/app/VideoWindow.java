@@ -1,5 +1,6 @@
 package in.omerjerk.remotedroid.app;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
@@ -20,8 +21,9 @@ import java.util.Objects;
 import in.tosc.remotedroid.R;
 
 /**
- * Created by root on 13/1/15.
+ * Created by omerjerk on 13/1/15.
  */
+@SuppressLint("NewApi")
 public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
 
     LayoutInflater mInflater;
@@ -61,7 +63,7 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
     public void inflateSurfaceView() {
         surfaceView = (SurfaceView) findViewById(R.id.demo_surface_view);
         surfaceView.getHolder().addCallback(this);
-        encBuffer = new CircularEncoderBuffer((int)(1024 * 1024 * 0.5), 15, 7);
+        encBuffer = new CircularEncoderBuffer((int)(1024 * 1024 * 0.5), 30, 7);
     }
 
     @Override
@@ -93,20 +95,9 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
         boolean outputDone = false;
 
         while(!decoderConfigured) {
-
         }
 
         Log.d(TAG, "Decoder Configured");
-
-        /*
-        synchronized (mLock) {
-            try {
-                mLock.wait();
-                Log.d(TAG, "lock removed");
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }*/
 
         while(!firstIFrameAdded) {}
 
@@ -118,56 +109,52 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
         ByteBuffer encodedFrames;
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
         while (!outputDone) {
-            /*
-            synchronized (mLock) {
-                try {
-                    mLock.wait();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }*/
-            Log.d(TAG, "Index = " + index);
-            while (index == -1) {
-                index = encBuffer.getNextIndex(index);
-            }
+//            Log.d(TAG, "Index = " + index);
             encodedFrames = encBuffer.getChunk(index, info);
-            Log.d(TAG, "info = " + info);
-            index = encBuffer.getNextIndex(index);
-            if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+            Log.d(TAG, "frame = " + encodedFrames);
+            encodedFrames.limit(info.size + info.offset);
+            encodedFrames.position(info.offset);
+            Log.d(TAG, "updated frame = " + encodedFrames);
+//            Log.d(TAG, "time = " + info.presentationTimeUs);
 
-            } else {
-                int inputBufIndex = decoder.dequeueInputBuffer(-1);
-                ByteBuffer inputBuf = decoderInputBuffers[inputBufIndex];
+            try {
+                index = encBuffer.getNextIntCustom(index);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            int inputBufIndex = decoder.dequeueInputBuffer(-1);
+            if (inputBufIndex >= 0) {
+                ByteBuffer inputBuf = decoder.getInputBuffer(inputBufIndex);
                 inputBuf.clear();
                 inputBuf.put(encodedFrames);
                 decoder.queueInputBuffer(inputBufIndex, 0, info.size,
                         info.presentationTimeUs, info.flags);
             }
+
             if (decoderConfigured) {
                 int decoderStatus = decoder.dequeueOutputBuffer(info, CodecUtils.TIMEOUT_USEC);
                 if (decoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
                     // no output available yet
-                    Log.d(TAG, "no output from decoder available");
+//                    Log.d(TAG, "no output from decoder available");
                 } else if (decoderStatus == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
                     // The storage associated with the direct ByteBuffer may already be unmapped,
                     // so attempting to access data through the old output buffer array could
                     // lead to a native crash.
                     Log.d(TAG, "decoder output buffers changed");
-                    decoderOutputBuffers = decoder.getOutputBuffers();
                 } else if (decoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     // this happens before the first frame is returned
                     decoderOutputFormat = decoder.getOutputFormat();
                     Log.d(TAG, "decoder output format changed: " +
                             decoderOutputFormat);
-                } else if (decoderStatus < 0) {
-                    break;
-                } else {  // decoderStatus >= 0
+                } else { // decoderStatus >= 0
                     boolean doRender = (info.size != 0);
                     // As soon as we call releaseOutputBuffer, the buffer will be forwarded
                     // to SurfaceTexture to convert to a texture.  The API doesn't guarantee
                     // that the texture will be available before the call returns, so we
                     // need to wait for the onFrameAvailable callback to fire.
-                    decoder.releaseOutputBuffer(decoderStatus, doRender);
+                    decoder.releaseOutputBuffer(decoderStatus, true);
+//                    Log.d(TAG, "Rendering");
                 }
             }
         }
@@ -196,13 +183,7 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
         encBuffer.add(encodedFrames, info.flags, info.presentationTimeUs);
         if ((info.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0) {
             firstIFrameAdded = true;
-            Log.d(TAG, "Sync frame received");
+//            Log.d(TAG, "Sync frame received");
         }
-
-        /*
-        synchronized (mLock) {
-            mLock.notify();
-            Log.d(TAG, "thread notified");
-        }*/
     }
 }
