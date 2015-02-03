@@ -17,6 +17,8 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Toast;
+
+import com.android.grafika.CircularEncoderBuffer;
 import com.koushikdutta.async.ByteBufferList;
 import com.koushikdutta.async.DataEmitter;
 import com.koushikdutta.async.callback.CompletedCallback;
@@ -32,7 +34,7 @@ import java.util.TimerTask;
 
 import in.tosc.remotedroid.R;
 
-
+@SuppressLint("NewApi")
 public class ClientActivity extends Activity implements SurfaceHolder.Callback, View.OnTouchListener{
 
     private static final String TAG = "omerjerk";
@@ -44,7 +46,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
     ByteBuffer[] decoderInputBuffers = null;
     MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
 
-    long frameCount = 0;
+    CircularEncoderBuffer encBuffer = new CircularEncoderBuffer((int)(1024 * 1024 * 0.5), 30, 7);
 
     private WebSocket webSocket;
 
@@ -53,6 +55,11 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
     int deviceWidth;
     int deviceHeight;
     Point videoResolution = new Point();
+
+    int i = -1;
+    String[] infoStringParts;
+
+    private boolean firstIFrameAdded;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,7 +93,6 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
                 public void onCompleted(Exception e) {
                     ClientActivity.this.webSocket = null;
                     showToast("Closed");
-                    new ReconnectDialog().show(getFragmentManager(), "RECONNECT_DIALOG");
                 }
             });
             webSocket.setStringCallback(new WebSocket.StringCallback() {
@@ -113,89 +119,97 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
             webSocket.setDataCallback(new DataCallback() {
                 @Override
                 public void onDataAvailable(DataEmitter dataEmitter, ByteBufferList byteBufferList) {
-                    if (true) {
+                        ++i;
                         ByteBuffer b = byteBufferList.getAll();
-                        //b.position(info.offset);
-                        b.position(0);
-                        //b.limit(info.offset + info.size);
-                        b.limit(info.size);
-                        if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                            MediaFormat format =
-                                    MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
-                                            videoResolution.x, videoResolution.y);
-                            format.setByteBuffer("csd-0", b);
-                            decoder.configure(format, surfaceView.getHolder().getSurface(), null, 0);
-                            decoder.start();
-                            byteBufferList.recycle();
-                            decoderInputBuffers = decoder.getInputBuffers();
-                            decoderConfigured = true;
-                            return;
-                        }
-                        int inputBufIndex = decoder.dequeueInputBuffer(CodecUtils.TIMEOUT_USEC);
-                        if (inputBufIndex >= 0) {
-                            ByteBuffer inputBuf = decoderInputBuffers[inputBufIndex];
-                            inputBuf.clear();
-                            inputBuf.limit(info.offset + info.size);
-                            byte[] buff = new byte[info.size];
-                            b.get(buff, 0, info.size);
-                            try {
-                                inputBuf.put(buff);
-                            } catch (BufferOverflowException e) {
-                                showToast("Buffer Overflow = " + e.getMessage());
-                                Log.d(TAG, "Input buff capacity = " + inputBuf.capacity() + " limit = " + inputBuf.limit() + " byte size = " + buff.length);
-                                e.printStackTrace();
-                                byteBufferList.recycle();
-                                return;
-                            }
-
-                            inputBuf.rewind();
-                            decoder.queueInputBuffer(inputBufIndex, 0, info.size,
-                                    info.presentationTimeUs, 0 /*flags*/);
-                        }
-                        int decoderStatus = decoder.dequeueOutputBuffer(info, CodecUtils.TIMEOUT_USEC);
-                        if (decoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                            // no output available yet
-                            Log.d(TAG, "no output from decoder available");
-                        } else if (decoderStatus == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
-                            // The storage associated with the direct ByteBuffer may already be unmapped,
-                            // so attempting to access data through the old output buffer array could
-                            // lead to a native crash.
-                            Log.d(TAG, "decoder output buffers changed");
-                        } else if (decoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                            // this happens before the first frame is returned
-                            MediaFormat decoderOutputFormat = decoder.getOutputFormat();
-                            Log.d(TAG, "decoder output format changed: " + decoderOutputFormat);
-                        } else if (decoderStatus < 0) {
-                            //TODO: fail
-                            showToast("Something wrong with the decoder. Need to stop everything.");
+                        Log.d(TAG, "Received buffer = " + b);
+                        if (i % 2 == 0) {
+                            String temp = new String(b.array());
+                            Log.d(TAG, "Received String = " + temp);
+                            infoStringParts = temp.split(",");
+                            info.set(Integer.parseInt(infoStringParts[0]), Integer.parseInt(infoStringParts[1]),
+                                    Long.parseLong(infoStringParts[2]), Integer.parseInt(infoStringParts[3]));
                         } else {
-                            if (info.size == 0) {
-                                Log.d(TAG, "got empty frame");
-                            }
-                            if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                                Log.d(TAG, "output EOS");
-                            }
-                            boolean doRender = (info.size != 0);
-                            decoder.releaseOutputBuffer(decoderStatus, doRender /*render*/);
+                            setData(b, info);
                         }
-                    }
                     byteBufferList.recycle();
                 }
             });
         }
     };
 
-    private void hideSystemUI() {
-        // Set the IMMERSIVE flag.
-        // Set the content to appear under the system bars so that the content
-        // doesn't resize when the system bars hide and show.
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
-                        | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
-                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+    public void doDecoderThingie() {
+        boolean outputDone = false;
+
+        while(!decoderConfigured) {
+        }
+
+        if (MainActivity.DEBUG) Log.d(TAG, "Decoder Configured");
+
+        while(!firstIFrameAdded) {}
+
+        int index = encBuffer.getFirstIndex();
+        if (index < 0) {
+            Log.e(TAG, "CircularBuffer Error");
+            return;
+        }
+        ByteBuffer encodedFrames;
+        MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+        while (!outputDone) {
+            encodedFrames = encBuffer.getChunk(index, info);
+            encodedFrames.limit(info.size + info.offset);
+            encodedFrames.position(info.offset);
+
+            try {
+                index = encBuffer.getNextIntCustom(index);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            int inputBufIndex = decoder.dequeueInputBuffer(-1);
+            if (inputBufIndex >= 0) {
+                ByteBuffer inputBuf = decoder.getInputBuffer(inputBufIndex);
+                inputBuf.clear();
+                inputBuf.put(encodedFrames);
+                decoder.queueInputBuffer(inputBufIndex, 0, info.size,
+                        info.presentationTimeUs, info.flags);
+            }
+
+            if (decoderConfigured) {
+                int decoderStatus = decoder.dequeueOutputBuffer(info, CodecUtils.TIMEOUT_USEC);
+                if (decoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
+                    if (MainActivity.DEBUG) Log.d(TAG, "no output from decoder available");
+                } else if (decoderStatus == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
+                    if (MainActivity.DEBUG) Log.d(TAG, "decoder output buffers changed");
+                } else if (decoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                    // this happens before the first frame is returned
+                    MediaFormat decoderOutputFormat = decoder.getOutputFormat();
+                    Log.d(TAG, "decoder output format changed: " +
+                            decoderOutputFormat);
+                } else {
+                    decoder.releaseOutputBuffer(decoderStatus, true);
+                }
+            }
+        }
+    }
+
+    private void setData(ByteBuffer encodedFrames, MediaCodec.BufferInfo info) {
+        if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+            Log.d(TAG, "Configuring Decoder");
+            MediaFormat format =
+                    MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE, CodecUtils.WIDTH, CodecUtils.HEIGHT);
+            format.setByteBuffer("csd-0", encodedFrames);
+            decoder.configure(format, surfaceView.getHolder().getSurface(),
+                    null, 0);
+            decoder.start();
+            decoderConfigured = true;
+            Log.d(TAG, "decoder configured (" + info.size + " bytes)");
+            return;
+        }
+
+        encBuffer.add(encodedFrames, info.flags, info.presentationTimeUs);
+        if ((info.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0) {
+            firstIFrameAdded = true;
+        }
     }
 
     private void showToast(final String message) {
@@ -211,6 +225,12 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
     public void surfaceCreated(SurfaceHolder surfaceHolder) {
         try {
             decoder = MediaCodec.createDecoderByType(CodecUtils.MIME_TYPE);
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    doDecoderThingie();
+                }
+            }).start();
             AsyncHttpClient.getDefaultInstance().websocket("ws://" + address, null, websocketCallback);
         } catch (IOException e) {
             e.printStackTrace();
@@ -244,25 +264,16 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
         }, 2000, 3000);
     }
 
-    @SuppressLint("ValidFragment")
-    private class ReconnectDialog extends DialogFragment {
-        @Override
-        public Dialog onCreateDialog(Bundle savedInstanceState) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-            builder.setTitle("Disconnected");
-            builder.setPositiveButton("Reconnect ?", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialogInterface, int i) {
-                    AsyncHttpClient.getDefaultInstance().websocket("ws://" + address, null, websocketCallback);
-                }
-            });
-            builder.setNegativeButton("Close", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialogInterface, int i) {
-                    finish();
-                }
-            });
-            return builder.create();
-        }
+    private void hideSystemUI() {
+        // Set the IMMERSIVE flag.
+        // Set the content to appear under the system bars so that the content
+        // doesn't resize when the system bars hide and show.
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
+                        | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
+                        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
     }
 }

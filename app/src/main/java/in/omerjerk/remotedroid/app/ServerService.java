@@ -291,6 +291,7 @@ public class ServerService extends Service {
 
             boolean encoderDone = false;
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+            String infoString;
             while (!encoderDone) {
                 int encoderStatus;
                 try {
@@ -321,18 +322,14 @@ public class ServerService extends Service {
                     }
                     if (!LOCAL_DEBUG) {
                         for (WebSocket socket : _sockets) {
-                            if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                                socket.send(info.offset + "," + info.size + "," +
-                                        info.presentationTimeUs + "," + info.flags + "," +
-                                        resolution.x + "," + resolution.y);
-                            } else {
-                                socket.send(info.offset + "," + info.size + "," +
-                                        info.presentationTimeUs + "," + info.flags);
-                            }
+                            infoString = info.offset + "," + info.size + "," +
+                                    info.presentationTimeUs + "," + info.flags;
+                            socket.send(infoString.getBytes());
 
                             byte[] b = new byte[info.size];
                             try {
                                 if (info.size != 0) {
+                                    encodedData.limit(info.offset + info.size);
                                     encodedData.position(info.offset);
                                     encodedData.get(b, info.offset, info.offset + info.size);
                                     socket.send(b);
