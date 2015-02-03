@@ -210,8 +210,6 @@ public class CircularEncoderBuffer {
         int packetStart = mPacketStart[index];
         int length = mPacketLength[index];
 
-        Log.d(TAG, "packetStart = " + packetStart + " length = " + length);
-
         info.flags = mPacketFlags[index];
         info.offset = packetStart;
         info.presentationTimeUs = mPacketPtsUsec[index];

@@ -340,7 +340,7 @@ public class ResponseCacheMiddleware extends SimpleMiddleware {
         @Override
         public void onDataAvailable(DataEmitter emitter, ByteBufferList bb) {
             if (cached != null) {
-                com.koushikdutta.async.Util.emitAllData(this, cached);
+                super.onDataAvailable(emitter, cached);
                 // couldn't emit it all, so just wait for another day...
                 if (cached.remaining() > 0)
                     return;
@@ -384,6 +384,12 @@ public class ResponseCacheMiddleware extends SimpleMiddleware {
             }
         }
 
+        @Override
+        public void close() {
+            abort();
+            super.close();
+        }
+
         public void abort() {
             if (editor != null) {
                 editor.abort();
@@ -419,7 +425,7 @@ public class ResponseCacheMiddleware extends SimpleMiddleware {
 
         void spewInternal() {
             if (pending.remaining() > 0) {
-                com.koushikdutta.async.Util.emitAllData(CachedBodyEmitter.this, pending);
+                super.onDataAvailable(CachedBodyEmitter.this, pending);
                 if (pending.remaining() > 0)
                     return;
             }
@@ -445,7 +451,7 @@ public class ResponseCacheMiddleware extends SimpleMiddleware {
                 report(e);
                 return;
             }
-            com.koushikdutta.async.Util.emitAllData(this, pending);
+            super.onDataAvailable(this, pending);
             if (pending.remaining() > 0)
                 return;
             // this limits max throughput to 256k (aka max alloc) * 100 per second...
@@ -466,6 +472,12 @@ public class ResponseCacheMiddleware extends SimpleMiddleware {
         @Override
         public boolean isPaused() {
             return paused;
+        }
+
+        @Override
+        public void close() {
+            StreamUtility.closeQuietly(cacheResponse.getBody());
+            super.close();
         }
 
         @Override

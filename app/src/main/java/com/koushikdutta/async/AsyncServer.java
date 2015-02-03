@@ -361,11 +361,11 @@ public class AsyncServer {
                     ckey.attach(cancel);
                     socket.connect(address);
                 }
-                catch (IOException e) {
+                catch (Throwable e) {
                     if (ckey != null)
                         ckey.cancel();
                     StreamUtility.closeQuietly(socket);
-                    cancel.setComplete(e);
+                    cancel.setComplete(new RuntimeException(e));
                 }
             }
         });
@@ -626,7 +626,7 @@ public class AsyncServer {
                 runLoop(server, selector, queue);
             }
             catch (AsyncSelectorException e) {
-                Log.e(LOGTAG, "Selector exception", e);
+                Log.i(LOGTAG, "Selector exception, shutting down", e);
                 try {
                     // StreamUtility.closeQuiety is throwing ArrayStoreException?
                     selector.getSelector().close();

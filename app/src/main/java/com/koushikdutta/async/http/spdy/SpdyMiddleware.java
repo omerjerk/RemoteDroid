@@ -10,10 +10,10 @@ import com.koushikdutta.async.DataEmitter;
 import com.koushikdutta.async.callback.ConnectCallback;
 import com.koushikdutta.async.future.Cancellable;
 import com.koushikdutta.async.future.FutureCallback;
+import com.koushikdutta.async.future.MultiFuture;
 import com.koushikdutta.async.future.SimpleCancellable;
 import com.koushikdutta.async.future.TransformFuture;
 import com.koushikdutta.async.http.AsyncHttpClient;
-import com.koushikdutta.async.http.AsyncHttpClientMiddleware;
 import com.koushikdutta.async.http.AsyncHttpRequest;
 import com.koushikdutta.async.http.AsyncSSLEngineConfigurator;
 import com.koushikdutta.async.http.AsyncSSLSocketMiddleware;
@@ -24,6 +24,7 @@ import com.koushikdutta.async.http.Protocol;
 import com.koushikdutta.async.http.body.AsyncHttpRequestBody;
 import com.koushikdutta.async.util.Charsets;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -39,13 +40,13 @@ public class SpdyMiddleware extends AsyncSSLSocketMiddleware {
         super(client);
         addEngineConfigurator(new AsyncSSLEngineConfigurator() {
             @Override
-            public void configureEngine(SSLEngine engine, String host, int port) {
-                configure(engine, host, port);
+            public void configureEngine(SSLEngine engine, GetSocketData data, String host, int port) {
+                configure(engine, data, host, port);
             }
         });
     }
 
-    private void configure(SSLEngine engine, String host, int port) {
+    private void configure(SSLEngine engine, GetSocketData data, String host, int port) {
         if (!initialized && spdyEnabled) {
             initialized = true;
             try {
@@ -83,6 +84,12 @@ public class SpdyMiddleware extends AsyncSSLSocketMiddleware {
             }
         }
 
+        // TODO: figure out why POST does not work if sending content-length header
+        // see above regarding app engine comment as to why: drive requires content-length
+        // but app engine sends a GO_AWAY if it sees a content-length...
+        if (!canSpdyRequest(data))
+            return;
+
         if (sslParameters != null) {
             try {
                 byte[] protocols = concatLengthPrefixed(
@@ -113,8 +120,11 @@ public class SpdyMiddleware extends AsyncSSLSocketMiddleware {
     Field useSni;
     Method nativeGetNpnNegotiatedProtocol;
     Method nativeGetAlpnNegotiatedProtocol;
-    Hashtable<String, AsyncSpdyConnection> connections = new Hashtable<String, AsyncSpdyConnection>();
+    Hashtable<String, SpdyConnectionWaiter> connections = new Hashtable<String, SpdyConnectionWaiter>();
     boolean spdyEnabled;
+
+    private static class SpdyConnectionWaiter extends MultiFuture<AsyncSpdyConnection> {
+    }
 
     public boolean getSpdyEnabled() {
         return spdyEnabled;
@@ -153,13 +163,27 @@ public class SpdyMiddleware extends AsyncSSLSocketMiddleware {
         return pathAndQuery;
     }
 
+    private static class NoSpdyException extends Exception {
+    }
+    private static final NoSpdyException NO_SPDY = new NoSpdyException();
+
+    private void noSpdy(final GetSocketData data, String key) {
+        SpdyConnectionWaiter conn = connections.remove(key);
+        if (conn != null)
+            conn.setComplete(NO_SPDY);
+        data.request.logv("not using spdy");
+    }
+
     @Override
     protected AsyncSSLSocketWrapper.HandshakeCallback createHandshakeCallback(final GetSocketData data, final ConnectCallback callback) {
         return new AsyncSSLSocketWrapper.HandshakeCallback() {
             @Override
             public void onHandshakeCompleted(Exception e, AsyncSSLSocket socket) {
+                final String key = data.request.getUri().getHost();
+                data.request.logv("checking spdy handshake");
                 if (e != null || nativeGetAlpnNegotiatedProtocol == null) {
                     callback.onConnectCompleted(e, socket);
+                    noSpdy(data, key);
                     return;
                 }
                 try {
@@ -167,24 +191,42 @@ public class SpdyMiddleware extends AsyncSSLSocketMiddleware {
                     byte[] proto = (byte[])nativeGetAlpnNegotiatedProtocol.invoke(null, ptr);
                     if (proto == null) {
                         callback.onConnectCompleted(null, socket);
+                        noSpdy(data, key);
                         return;
                     }
                     String protoString = new String(proto);
                     Protocol p = Protocol.get(protoString);
                     if (p == null) {
                         callback.onConnectCompleted(null, socket);
+                        noSpdy(data, key);
                         return;
                     }
-                    final AsyncSpdyConnection connection = new AsyncSpdyConnection(socket, Protocol.get(protoString));
-                    connection.sendConnectionPreface();
+                    final AsyncSpdyConnection connection = new AsyncSpdyConnection(socket, Protocol.get(protoString)) {
+                        boolean hasReceivedSettings;
+                        @Override
+                        public void settings(boolean clearPrevious, Settings settings) {
+                            super.settings(clearPrevious, settings);
+                            if (!hasReceivedSettings) {
+                                try {
+                                    sendConnectionPreface();
+                                } catch (IOException e1) {
+                                    e1.printStackTrace();
+                                }
+                                hasReceivedSettings = true;
 
-                    connections.put(data.request.getUri().getHost(), connection);
+                                data.request.logv("using new spdy connection for host: " + data.request.getUri().getHost());
+                                newSocket(data, this, callback);
 
-                    newSocket(data, connection, callback);
+                                SpdyConnectionWaiter waiter = connections.get(key);
+                                waiter.setComplete(this);
+                            }
+                        }
+                    };
                 }
                 catch (Exception ex) {
                     socket.close();
                     callback.onConnectCompleted(ex, null);
+                    noSpdy(data, key);
                 }
             }
         };
@@ -192,7 +234,6 @@ public class SpdyMiddleware extends AsyncSSLSocketMiddleware {
 
     private void newSocket(GetSocketData data, final AsyncSpdyConnection connection, final ConnectCallback callback) {
         final AsyncHttpRequest request = data.request;
-        request.logv("using spdy connection");
 
         data.protocol = connection.protocol.toString();
 
@@ -229,14 +270,20 @@ public class SpdyMiddleware extends AsyncSSLSocketMiddleware {
             }
         }
 
-
         request.logv("\n" + request);
         final AsyncSpdyConnection.SpdySocket spdy = connection.newStream(headers, requestBody != null, true);
         callback.onConnectCompleted(null, spdy);
     }
 
+    private boolean canSpdyRequest(GetSocketData data) {
+        // TODO: figure out why POST does not work if sending content-length header
+        // see above regarding app engine comment as to why: drive requires content-length
+        // but app engine sends a GO_AWAY if it sees a content-length...
+        return data.request.getBody() == null;
+    }
+
     @Override
-    public Cancellable getSocket(GetSocketData data) {
+    public Cancellable getSocket(final GetSocketData data) {
         if (!spdyEnabled)
             return super.getSocket(data);
 
@@ -249,21 +296,52 @@ public class SpdyMiddleware extends AsyncSSLSocketMiddleware {
         // TODO: figure out why POST does not work if sending content-length header
         // see above regarding app engine comment as to why: drive requires content-length
         // but app engine sends a GO_AWAY if it sees a content-length...
-        if (data.request.getBody() != null)
+        if (!canSpdyRequest(data))
             return super.getSocket(data);
 
         // can we use an existing connection to satisfy this, or do we need a new one?
-        String host = uri.getHost();
-        AsyncSpdyConnection conn = connections.get(host);
-        if (conn == null || !conn.socket.isOpen()) {
-            connections.remove(host);
-            return super.getSocket(data);
+        String key = uri.getHost();
+        SpdyConnectionWaiter conn = connections.get(key);
+        if (conn != null && conn.tryGet() != null && !conn.tryGet().socket.isOpen()) {
+            connections.remove(key);
+            conn = null;
         }
 
-        newSocket(data, conn, data.connectCallback);
+        if (conn == null) {
+            Cancellable superSocket = super.getSocket(data);;
+            // see if we reuse a socket synchronously, otherwise a new connection is being created
+            if (!superSocket.isDone()) {
+                data.request.logv("waiting for spdy connection for host: " + data.request.getUri().getHost());
+                connections.put(key, new SpdyConnectionWaiter());
+            }
+            else {
+                data.request.logv("attempting spdy connection for host: " + data.request.getUri().getHost());
+            }
+            return superSocket;
+        }
 
-        SimpleCancellable ret = new SimpleCancellable();
-        ret.setComplete();
+        data.request.logv("waiting for potential spdy connection for host: " + data.request.getUri().getHost());
+        final SimpleCancellable ret = new SimpleCancellable();
+        conn.setCallback(new FutureCallback<AsyncSpdyConnection>() {
+            @Override
+            public void onCompleted(Exception e, AsyncSpdyConnection conn) {
+                if (e instanceof NoSpdyException) {
+                    data.request.logv("spdy not available");
+                    ret.setParent(SpdyMiddleware.super.getSocket(data));
+                    return;
+                }
+                if (e != null) {
+                    data.request.loge("spdy not available", e);
+                    ret.setComplete();
+                    data.connectCallback.onConnectCompleted(e, null);
+                    return;
+                }
+                data.request.logv("using existing spdy connection for host: " + data.request.getUri().getHost());
+                ret.setComplete();
+                newSocket(data, conn, data.connectCallback);
+            }
+        });
+
         return ret;
     }
 
@@ -294,7 +372,8 @@ public class SpdyMiddleware extends AsyncSSLSocketMiddleware {
                 String status = headers.remove(Header.RESPONSE_STATUS.utf8());
                 String[] statusParts = status.split(" ", 2);
                 data.response.code(Integer.parseInt(statusParts[0]));
-                data.response.message(statusParts[1]);
+                if (statusParts.length == 2)
+                    data.response.message(statusParts[1]);
                 data.response.protocol(headers.remove(Header.VERSION.utf8()));
                 data.response.headers(headers);
                 setComplete(headers);
