@@ -3,7 +3,6 @@ package in.omerjerk.remotedroid.app;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.media.MediaCodec;
-import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -97,7 +96,7 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
         while(!decoderConfigured) {
         }
 
-        Log.d(TAG, "Decoder Configured");
+        if (MainActivity.DEBUG) Log.d(TAG, "Decoder Configured");
 
         while(!firstIFrameAdded) {}
 
@@ -109,13 +108,9 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
         ByteBuffer encodedFrames;
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
         while (!outputDone) {
-//            Log.d(TAG, "Index = " + index);
             encodedFrames = encBuffer.getChunk(index, info);
-            Log.d(TAG, "frame = " + encodedFrames);
             encodedFrames.limit(info.size + info.offset);
             encodedFrames.position(info.offset);
-            Log.d(TAG, "updated frame = " + encodedFrames);
-//            Log.d(TAG, "time = " + info.presentationTimeUs);
 
             try {
                 index = encBuffer.getNextIntCustom(index);
@@ -135,26 +130,16 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
             if (decoderConfigured) {
                 int decoderStatus = decoder.dequeueOutputBuffer(info, CodecUtils.TIMEOUT_USEC);
                 if (decoderStatus == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                    // no output available yet
-//                    Log.d(TAG, "no output from decoder available");
+                    if (MainActivity.DEBUG) Log.d(TAG, "no output from decoder available");
                 } else if (decoderStatus == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
-                    // The storage associated with the direct ByteBuffer may already be unmapped,
-                    // so attempting to access data through the old output buffer array could
-                    // lead to a native crash.
-                    Log.d(TAG, "decoder output buffers changed");
+                    if (MainActivity.DEBUG) Log.d(TAG, "decoder output buffers changed");
                 } else if (decoderStatus == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
                     // this happens before the first frame is returned
                     decoderOutputFormat = decoder.getOutputFormat();
                     Log.d(TAG, "decoder output format changed: " +
                             decoderOutputFormat);
-                } else { // decoderStatus >= 0
-                    boolean doRender = (info.size != 0);
-                    // As soon as we call releaseOutputBuffer, the buffer will be forwarded
-                    // to SurfaceTexture to convert to a texture.  The API doesn't guarantee
-                    // that the texture will be available before the call returns, so we
-                    // need to wait for the onFrameAvailable callback to fire.
+                } else {
                     decoder.releaseOutputBuffer(decoderStatus, true);
-//                    Log.d(TAG, "Rendering");
                 }
             }
         }
@@ -166,10 +151,6 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
             MediaFormat format =
                     MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE, mWidth, mHeight);
             format.setByteBuffer("csd-0", encodedFrames);
-//                format.setInteger(MediaFormat.KEY_BIT_RATE, (int) (1024 * 1024 * 0.5));
-//                format.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
-//                format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-//                format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
             decoder.configure(format, surfaceView.getHolder().getSurface(),
                     null, 0);
             decoder.start();
@@ -183,7 +164,6 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
         encBuffer.add(encodedFrames, info.flags, info.presentationTimeUs);
         if ((info.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0) {
             firstIFrameAdded = true;
-//            Log.d(TAG, "Sync frame received");
         }
     }
 }

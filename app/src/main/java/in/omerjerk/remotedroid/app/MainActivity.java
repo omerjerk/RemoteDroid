@@ -26,6 +26,8 @@ public class MainActivity extends Activity {
 
     private static final String KEY_SYSTEM_PRIVILEGE_PREF = "has_system_privilege";
 
+    public static final boolean DEBUG = true;
+
     private static final String INSTALL_SCRIPT =
             "mount -o rw,remount /system\n" +
             "cat %s > /system/priv-app/RemoteDroid.apk.tmp\n" +
