@@ -16,6 +16,7 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Toast;
 
 import com.android.grafika.CircularEncoderBuffer;
@@ -74,6 +75,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
         surfaceView = (SurfaceView) findViewById(R.id.main_surface_view);
         surfaceView.getHolder().addCallback(this);
         surfaceView.setOnTouchListener(this);
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     }
 
     private AsyncHttpClient.WebSocketConnectCallback websocketCallback = new AsyncHttpClient
@@ -254,6 +256,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
     }
 
     private void setTimer() {
+
         new Timer("keep_alive").scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
@@ -261,7 +264,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
                     webSocket.send("random,");
                 }
             }
-        }, 2000, 3000);
+        }, 2000, 1500);
     }
 
     private void hideSystemUI() {
