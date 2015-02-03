@@ -7,6 +7,10 @@ App to control your android device from another android device over the internet
 
 **Demo :** https://www.youtube.com/watch?v=ZdNcBAp0yeo
 
+**Screenie :** 
+
+![alt tag](http://i.imgur.com/JJuNWlj.jpg)
+
 ##Licensed under GPLv3##
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
