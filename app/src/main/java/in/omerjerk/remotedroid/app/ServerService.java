@@ -69,7 +69,7 @@ public class ServerService extends Service {
     int deviceHeight;
     Point resolution = new Point();
 
-    private static final boolean LOCAL_DEBUG = true;
+    private static boolean LOCAL_DEBUG = true;
     VideoWindow videoWindow = null;
 
     private class ToastRunnable implements Runnable {
@@ -129,6 +129,7 @@ public class ServerService extends Service {
         }
         if (server == null && intent.getAction().equals("START")) {
             preferences = PreferenceManager.getDefaultSharedPreferences(this);
+            LOCAL_DEBUG = preferences.getBoolean("local_debugging", true);
             DisplayMetrics dm = new DisplayMetrics();
             Display mDisplay = ((WindowManager) getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
             mDisplay.getMetrics(dm);

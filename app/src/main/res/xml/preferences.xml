@@ -3,12 +3,13 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <PreferenceCategory
-        android:title="Core"
-        android:key="pref_core">
-        <ListPreference
-            android:title="Encoding/Decoding layer"
-            android:summary="C++ is in beta state"
-            android:key="layer" />
+        android:title="General"
+        android:key="pref_general">
+        <CheckBoxPreference
+            android:title="Enable local debugging"
+            android:summary="Local debugging allows developers to debug in a local overlay window"
+            android:key="local_debugging"
+            android:defaultValue="false" />
     </PreferenceCategory>
 
     <PreferenceCategory

@@ -7,7 +7,7 @@
 
     <SurfaceView
         android:id="@+id/demo_surface_view"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_width="150dp"
+        android:layout_height="300dp" />
 
 </in.omerjerk.remotedroid.app.VideoWindow>
