@@ -15,6 +15,7 @@ import com.android.grafika.CircularEncoderBuffer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 import in.tosc.remotedroid.R;
 
@@ -40,6 +41,10 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
 
     private static final String TAG = "VideoWindow";
 
+    private Object mLock = new Object();
+
+    private boolean firstIFrameAdded = false;
+
     public VideoWindow(Context context) {
         super(context);
         mInflater = (LayoutInflater) context.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
@@ -56,13 +61,19 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
     public void inflateSurfaceView() {
         surfaceView = (SurfaceView) findViewById(R.id.demo_surface_view);
         surfaceView.getHolder().addCallback(this);
-        encBuffer = new CircularEncoderBuffer((int)(1024 * 1024 * 0.5), 15, 5);
+        encBuffer = new CircularEncoderBuffer((int)(1024 * 1024 * 0.5), 15, 7);
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         try {
             decoder = MediaCodec.createDecoderByType(CodecUtils.MIME_TYPE);
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    doDecoderThingie();
+                }
+            }).start();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -81,6 +92,24 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
     public void doDecoderThingie() {
         boolean outputDone = false;
 
+        while(!decoderConfigured) {
+
+        }
+
+        Log.d(TAG, "Decoder Configured");
+
+        /*
+        synchronized (mLock) {
+            try {
+                mLock.wait();
+                Log.d(TAG, "lock removed");
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }*/
+
+        while(!firstIFrameAdded) {}
+
         int index = encBuffer.getFirstIndex();
         if (index < 0) {
             Log.e(TAG, "CircularBuffer Error");
@@ -89,27 +118,24 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
         ByteBuffer encodedFrames;
         MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
         while (!outputDone) {
+            /*
+            synchronized (mLock) {
+                try {
+                    mLock.wait();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }*/
+            Log.d(TAG, "Index = " + index);
+            while (index == -1) {
+                index = encBuffer.getNextIndex(index);
+            }
             encodedFrames = encBuffer.getChunk(index, info);
+            Log.d(TAG, "info = " + info);
+            index = encBuffer.getNextIndex(index);
             if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                Log.d(TAG, "Configuring Decoder");
-                MediaFormat format =
-                        MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE, mWidth, mHeight);
-                format.setByteBuffer("csd-0", encodedFrames);
-//                format.setInteger(MediaFormat.KEY_BIT_RATE, (int) (1024 * 1024 * 0.5));
-//                format.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
-//                format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
-//                format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
-                decoder.configure(format, surfaceView.getHolder().getSurface(),
-                        null, 0);
-                decoder.start();
-                decoderInputBuffers = decoder.getInputBuffers();
-                decoderOutputBuffers = decoder.getOutputBuffers();
-                decoderConfigured = true;
-                Log.d(TAG, "decoder configured (" + info.size + " bytes)");
+
             } else {
-                Log.d(TAG, "Decoder not configured. Skipping");
-                if (!decoderConfigured)
-                    continue;
                 int inputBufIndex = decoder.dequeueInputBuffer(-1);
                 ByteBuffer inputBuf = decoderInputBuffers[inputBufIndex];
                 inputBuf.clear();
@@ -148,6 +174,35 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
     }
 
     public void setData(ByteBuffer encodedFrames, MediaCodec.BufferInfo info) {
+        if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+            Log.d(TAG, "Configuring Decoder");
+            MediaFormat format =
+                    MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE, mWidth, mHeight);
+            format.setByteBuffer("csd-0", encodedFrames);
+//                format.setInteger(MediaFormat.KEY_BIT_RATE, (int) (1024 * 1024 * 0.5));
+//                format.setInteger(MediaFormat.KEY_FRAME_RATE, 15);
+//                format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
+//                format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
+            decoder.configure(format, surfaceView.getHolder().getSurface(),
+                    null, 0);
+            decoder.start();
+            decoderInputBuffers = decoder.getInputBuffers();
+            decoderOutputBuffers = decoder.getOutputBuffers();
+            decoderConfigured = true;
+            Log.d(TAG, "decoder configured (" + info.size + " bytes)");
+            return;
+        }
+
         encBuffer.add(encodedFrames, info.flags, info.presentationTimeUs);
+        if ((info.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0) {
+            firstIFrameAdded = true;
+            Log.d(TAG, "Sync frame received");
+        }
+
+        /*
+        synchronized (mLock) {
+            mLock.notify();
+            Log.d(TAG, "thread notified");
+        }*/
     }
 }

@@ -164,7 +164,7 @@ public class CircularEncoderBuffer {
 
         int index = mMetaTail;
         while (index != mMetaHead) {
-            if ((mPacketFlags[index] & MediaCodec.BUFFER_FLAG_SYNC_FRAME) != 0) {
+            if ((mPacketFlags[index] & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0) {
                 break;
             }
             index = (index + 1) % metaLen;

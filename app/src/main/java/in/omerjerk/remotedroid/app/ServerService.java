@@ -345,15 +345,8 @@ public class ServerService extends Service {
                         videoWindow.setData(CodecUtils.clone(encodedData), info);
 
                         if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
-                            new Thread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    videoWindow.doDecoderThingie();
-                                }
-                            }).start();
-
+                            Log.w(TAG, "config flag received");
                         }
-                        Log.d(TAG, "Setting data");
 //                        }
                     }
 
