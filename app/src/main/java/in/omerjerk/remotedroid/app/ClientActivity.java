@@ -139,6 +139,10 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
         }
     };
 
+    /**
+     * Main decoder function which reads the encoded frames from the CircularBuffer and renders them
+     * on to the Surface
+     */
     public void doDecoderThingie() {
         boolean outputDone = false;
 
@@ -194,12 +198,17 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
         }
     }
 
-    private void setData(ByteBuffer encodedFrames, MediaCodec.BufferInfo info) {
+    /**
+     * Add a new frame to the CircularBuffer
+     * @param encodedFrame The new frame to be added to the CircularBuffer
+     * @param info The BufferInfo object for the encodedFrame
+     */
+    private void setData(ByteBuffer encodedFrame, MediaCodec.BufferInfo info) {
         if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
             Log.d(TAG, "Configuring Decoder");
             MediaFormat format =
                     MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE, CodecUtils.WIDTH, CodecUtils.HEIGHT);
-            format.setByteBuffer("csd-0", encodedFrames);
+            format.setByteBuffer("csd-0", encodedFrame);
             decoder.configure(format, surfaceView.getHolder().getSurface(),
                     null, 0);
             decoder.start();
@@ -208,7 +217,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
             return;
         }
 
-        encBuffer.add(encodedFrames, info.flags, info.presentationTimeUs);
+        encBuffer.add(encodedFrame, info.flags, info.presentationTimeUs);
         if ((info.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0) {
             firstIFrameAdded = true;
         }
@@ -255,6 +264,11 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
         return false;
     }
 
+    /**
+     * The server side websocket keeps going to sleep again and again and it's a very dirty hack to
+     * make it keep running. I keep pinging the server from this client after every particular interval
+     * of time as to keep it awake. HATE ME.
+     */
     private void setTimer() {
 
         new Timer("keep_alive").scheduleAtFixedRate(new TimerTask() {
@@ -267,10 +281,10 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
         }, 2000, 1500);
     }
 
+    /**
+     * Hide the status and navigation bars
+     */
     private void hideSystemUI() {
-        // Set the IMMERSIVE flag.
-        // Set the content to appear under the system bars so that the content
-        // doesn't resize when the system bars hide and show.
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                         | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION

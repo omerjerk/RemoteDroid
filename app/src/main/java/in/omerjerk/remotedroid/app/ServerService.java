@@ -85,38 +85,10 @@ public class ServerService extends Service {
         }
     }
 
-    private class NetworkWorker implements Runnable {
-
-        MediaCodec.BufferInfo info;
-        ByteBuffer byteBuffer;
-
-        public NetworkWorker() {
-        }
-
-        public NetworkWorker(MediaCodec.BufferInfo info, ByteBuffer byteBuffer) {
-            this.info = info;
-            this.byteBuffer = byteBuffer;
-        }
-
-        @Override
-        public void run() {
-            for (WebSocket socket : _sockets) {
-                socket.send(info.offset + "," + info.size + "," +
-                        info.presentationTimeUs + "," + info.flags);
-                byte[] b = new byte[info.size];
-                try {
-                    byteBuffer.position(0);
-                    byteBuffer.get(b, 0, info.size);
-                    socket.send(b);
-                } catch (BufferUnderflowException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-    private Handler networkHandler;
-
+    /**
+     * Main Entry Point of the server code.
+     * Create a WebSocket server and start the encoder.
+     */
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && intent.getAction() == "STOP") {
@@ -140,13 +112,7 @@ public class ServerService extends Service {
             mDisplay.getRealSize(resolution);
             resolution.x = (int) (resolution.x * resolutionRatio);
             resolution.y = (int) (resolution.y * resolutionRatio);
-            /*
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    Looper.prepare();
-                    networkHandler = new Handler();
-                    Looper.loop();*/
+
             if (!LOCAL_DEBUG) {
                 server = new AsyncHttpServer();
                 server.websocket("/", null, websocketCallback);
@@ -250,6 +216,12 @@ public class ServerService extends Service {
         }
     };
 
+    /**
+     * Create the display surface out of the encoder. The data to encoder will be fed from this
+     * Surface itself.
+     * @return
+     * @throws IOException
+     */
     @TargetApi(19)
     private Surface createDisplaySurface() throws IOException {
         MediaFormat mMediaFormat = MediaFormat.createVideoFormat(CodecUtils.MIME_TYPE,
@@ -349,10 +321,8 @@ public class ServerService extends Service {
                         if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
                             Log.w(TAG, "config flag received");
                         }
-//                        }
                     }
 
-                    //networkHandler.post(new NetworkWorker(info, encodedData));
                     encoderDone = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
 
                     try {
@@ -385,7 +355,10 @@ public class ServerService extends Service {
         mHandler.post(new ToastRunnable(message));
     }
 
-
+    /**
+     * Display the notification
+     * @param message
+     */
     private void updateNotification(String message) {
         Intent intent = new Intent(this, ServerService.class);
         intent.setAction("STOP");
