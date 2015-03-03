@@ -1,11 +1,13 @@
 RemoteDroid
 ===========
 
-App to control your android device from another android device over the internet connection
-
-**Live on Play Store :** https://play.google.com/store/apps/details?id=in.omerjerk.remotedroid.app
+Stream you device's display to another android device. And control your device back from that device.
 
 **Demo :** https://www.youtube.com/watch?v=ZdNcBAp0yeo
+
+**Screenie :** 
+
+![alt tag](http://i.imgur.com/JJuNWlj.jpg)
 
 ##Licensed under GPLv3##
 This program is free software: you can redistribute it and/or modify
