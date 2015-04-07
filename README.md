@@ -5,6 +5,8 @@ Stream you device's display to another android device. And control your device b
 
 **Demo :** https://www.youtube.com/watch?v=ZdNcBAp0yeo
 
+**Playstore Link :** https://play.google.com/store/apps/details?id=in.umairkhan.remotedroid
+
 **Screenie :** 
 
 ![alt tag](http://i.imgur.com/JJuNWlj.jpg)
