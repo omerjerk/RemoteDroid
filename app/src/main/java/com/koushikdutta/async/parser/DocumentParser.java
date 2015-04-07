@@ -11,6 +11,8 @@ import com.koushikdutta.async.stream.ByteBufferListInputStream;
 
 import org.w3c.dom.Document;
 
+import java.lang.reflect.Type;
+
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
@@ -34,5 +36,10 @@ public class DocumentParser implements AsyncParser<Document> {
     @Override
     public void write(DataSink sink, Document value, CompletedCallback completed) {
         new DocumentBody(value).write(null, sink, completed);
+    }
+
+    @Override
+    public Type getType() {
+        return Document.class;
     }
 }
