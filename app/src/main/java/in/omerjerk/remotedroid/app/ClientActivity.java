@@ -33,7 +33,7 @@ import java.nio.ByteBuffer;
 import java.util.Timer;
 import java.util.TimerTask;
 
-import in.tosc.remotedroid.R;
+import in.umairkhan.remotedroid.R;
 
 @SuppressLint("NewApi")
 public class ClientActivity extends Activity implements SurfaceHolder.Callback, View.OnTouchListener{
@@ -44,7 +44,6 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
 
     MediaCodec decoder;
     boolean decoderConfigured = false;
-    ByteBuffer[] decoderInputBuffers = null;
     MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
 
     CircularEncoderBuffer encBuffer = new CircularEncoderBuffer((int)(1024 * 1024 * 0.5), 30, 7);
@@ -153,6 +152,8 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
 
         while(!firstIFrameAdded) {}
 
+        if (MainActivity.DEBUG) Log.d(TAG, "Main Body");
+
         int index = encBuffer.getFirstIndex();
         if (index < 0) {
             Log.e(TAG, "CircularBuffer Error");
@@ -218,8 +219,10 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
         }
 
         encBuffer.add(encodedFrame, info.flags, info.presentationTimeUs);
+        if (MainActivity.DEBUG) Log.d(TAG, "Adding frames to the Buffer");
         if ((info.flags & MediaCodec.BUFFER_FLAG_KEY_FRAME) != 0) {
             firstIFrameAdded = true;
+            if (MainActivity.DEBUG) Log.d(TAG, "First I-Frame added");
         }
     }
 

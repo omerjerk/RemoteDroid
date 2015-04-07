@@ -3,12 +3,11 @@ package in.omerjerk.remotedroid.app;
 import android.content.SharedPreferences;
 import android.graphics.Point;
 import android.os.Bundle;
-import android.preference.CheckBoxPreference;
 import android.preference.EditTextPreference;
 import android.preference.ListPreference;
 import android.preference.PreferenceActivity;
 
-import in.tosc.remotedroid.R;
+import in.umairkhan.remotedroid.R;
 
 /**
  * Created by omerjerk on 26/7/14.

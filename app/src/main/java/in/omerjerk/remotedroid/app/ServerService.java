@@ -43,7 +43,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-import in.tosc.remotedroid.R;
+import in.umairkhan.remotedroid.R;
 
 public class ServerService extends Service {
 
@@ -56,8 +56,6 @@ public class ServerService extends Service {
 
     private AsyncHttpServer server;
     private List<WebSocket> _sockets = new ArrayList<WebSocket>();
-
-    long frameCount = 0;
 
     Thread encoderThread = null;
 

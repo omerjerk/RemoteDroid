@@ -16,7 +16,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
 import eu.chainfire.libsuperuser.Shell;
-import in.tosc.remotedroid.R;
+import in.umairkhan.remotedroid.R;
 
 
 public class MainActivity extends Activity {
@@ -26,7 +26,7 @@ public class MainActivity extends Activity {
 
     private static final String KEY_SYSTEM_PRIVILEGE_PREF = "has_system_privilege";
 
-    public static final boolean DEBUG = true;
+    public static final boolean DEBUG = false;
 
     private static final String INSTALL_SCRIPT =
             "mount -o rw,remount /system\n" +
