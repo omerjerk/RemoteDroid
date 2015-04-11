@@ -1,5 +1,7 @@
 RemoteDroid
 ===========
+####Build status
+[![Build Status](https://travis-ci.org/omerjerk/RemoteDroid.svg?branch=master)](https://travis-ci.org/omerjerk/RemoteDroid)
 
 Stream you device's display to another android device. And control your device back from that device.
 
