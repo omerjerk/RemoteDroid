@@ -114,7 +114,7 @@ public class ServerService extends Service {
             if (!LOCAL_DEBUG) {
                 server = new AsyncHttpServer();
                 server.websocket("/", null, websocketCallback);
-                serverPort = Integer.parseInt(preferences.getString(SettingsActivity.KEY_PORT_PREF, "6000"));
+                serverPort = Integer.parseInt(preferences.getString(SettingsActivity.KEY_PORT_PREF, "6060"));
                 bitrateRatio = Float.parseFloat(preferences.getString(SettingsActivity.KEY_BITRATE_PREF, "1"));
                 updateNotification("Streaming is live at");
                 server.listen(serverPort);
