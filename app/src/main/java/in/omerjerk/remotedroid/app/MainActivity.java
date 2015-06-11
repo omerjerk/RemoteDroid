@@ -111,10 +111,12 @@ public class MainActivity extends Activity {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == REQUEST_MEDIA_PROJECTION) {
-            Toast.makeText(this, "User cancelled the access", Toast.LENGTH_SHORT).show();
-            return;
+            if (resultCode != Activity.RESULT_OK) {
+                Toast.makeText(this, "User cancelled the access", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            mMediaProjection = mMediaProjectionManager.getMediaProjection(resultCode, data);
         }
-        mMediaProjection = mMediaProjectionManager.getMediaProjection(resultCode, data);
     }
 
     public void startClient(View v) {
