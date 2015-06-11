@@ -10,9 +10,11 @@ import android.content.SharedPreferences;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.hardware.display.DisplayManager;
+import android.hardware.display.VirtualDisplay;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
@@ -69,6 +71,7 @@ public class ServerService extends Service {
 
     private static boolean LOCAL_DEBUG = true;
     VideoWindow videoWindow = null;
+    private VirtualDisplay virtualDisplay;
 
     private class ToastRunnable implements Runnable {
         String mText;
@@ -245,9 +248,22 @@ public class ServerService extends Service {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        mDisplayManager.createVirtualDisplay("Remote Droid", CodecUtils.WIDTH, CodecUtils.HEIGHT, 50,
-                encoderInputSurface,
-                DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC | DisplayManager.VIRTUAL_DISPLAY_FLAG_SECURE);
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            virtualDisplay = mDisplayManager.createVirtualDisplay("Remote Droid", CodecUtils.WIDTH, CodecUtils.HEIGHT, 50,
+                    encoderInputSurface,
+                    DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC | DisplayManager.VIRTUAL_DISPLAY_FLAG_SECURE);
+        } else {
+            if (MainActivity.mMediaProjection != null) {
+                virtualDisplay = MainActivity.mMediaProjection.createVirtualDisplay("Remote Droid",
+                        CodecUtils.WIDTH, CodecUtils.HEIGHT, 50,
+                        DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                        encoderInputSurface, null, null);
+            } else {
+                showToast("Something went wrong. Please restart the app.");
+            }
+
+        }
+
         encoder.start();
     }
 
@@ -304,6 +320,7 @@ public class ServerService extends Service {
                                     encodedData.get(b, info.offset, info.offset + info.size);
                                     socket.send(b);
                                 }
+                                Log.d(TAG, "String = " + new String(b));
 
                             } catch (BufferUnderflowException e) {
                                 e.printStackTrace();
@@ -329,7 +346,6 @@ public class ServerService extends Service {
                         e.printStackTrace();
                     }
                 }
-
             }
         }
     }

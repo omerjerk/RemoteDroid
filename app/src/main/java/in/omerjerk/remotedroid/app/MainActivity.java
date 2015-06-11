@@ -1,14 +1,19 @@
 package in.omerjerk.remotedroid.app;
 
 import android.annotation.SuppressLint;
+import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.DialogFragment;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.media.projection.MediaProjection;
+import android.media.projection.MediaProjectionManager;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.view.Menu;
@@ -27,6 +32,13 @@ public class MainActivity extends Activity {
     private static final String KEY_SYSTEM_PRIVILEGE_PREF = "has_system_privilege";
 
     public static final boolean DEBUG = false;
+
+    static MediaProjection mMediaProjection;
+    private MediaProjectionManager mMediaProjectionManager;
+
+    private static final int REQUEST_MEDIA_PROJECTION = 1;
+    private Intent mResultData;
+    private int mResultCode;
 
     private static final String INSTALL_SCRIPT =
             "mount -o rw,remount /system\n" +
@@ -65,6 +77,10 @@ public class MainActivity extends Activity {
                 }
             }.execute();
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            mMediaProjectionManager = (MediaProjectionManager)
+                    getSystemService(Context.MEDIA_PROJECTION_SERVICE);
+        }
     }
 
     @Override
@@ -91,12 +107,34 @@ public class MainActivity extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == REQUEST_MEDIA_PROJECTION) {
+            Toast.makeText(this, "User cancelled the access", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        mMediaProjection = mMediaProjectionManager.getMediaProjection(resultCode, data);
+    }
+
     public void startClient(View v) {
         new AddressInputDialog().show(getFragmentManager(), "Address Dialog");
     }
 
     public void startServer(View v) {
-        new StartServerServiceDialog().show(getFragmentManager(), "Start service");
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            new StartServerServiceDialog().show(getFragmentManager(), "Start service");
+        } else {
+            startScreenCapture();
+        }
+
+    }
+
+    @TargetApi(Build.VERSION_CODES.LOLLIPOP)
+    private void startScreenCapture() {
+        startActivityForResult(
+                mMediaProjectionManager.createScreenCaptureIntent(),
+                REQUEST_MEDIA_PROJECTION);
     }
 
     @SuppressLint("ValidFragment")
