@@ -116,6 +116,9 @@ public class MainActivity extends Activity {
                 return;
             }
             mMediaProjection = mMediaProjectionManager.getMediaProjection(resultCode, data);
+            Intent startServerIntent = new Intent(MainActivity.this, ServerService.class);
+            startServerIntent.setAction("START");
+            startService(startServerIntent);
         }
     }
 
