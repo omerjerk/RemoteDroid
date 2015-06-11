@@ -5,7 +5,7 @@ RemoteDroid
 
 Stream you device's display to another android device. And control your device back from that device.
 
-Note: For KitKat+ (Lollipop) devices, new [MediaProjection](https://developer.android.com/reference/android/media/projection/MediaProjection.html) APIs are available which do not require the app to be installed in /system partition. I'll incorporate that API in this demo soon.
+Note: For KitKat+ (Lollipop) devices, new [MediaProjection](https://developer.android.com/reference/android/media/projection/MediaProjection.html) APIs are available which do not require the app to be installed in /system partition. I've implemented this API in this demo.
 
 **Demo :** https://www.youtube.com/watch?v=ZdNcBAp0yeo
 
