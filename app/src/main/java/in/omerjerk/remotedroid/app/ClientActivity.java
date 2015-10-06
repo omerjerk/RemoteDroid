@@ -27,6 +27,9 @@ import com.koushikdutta.async.http.WebSocket;
 import com.koushikdutta.async.callback.DataCallback;
 import com.koushikdutta.async.http.AsyncHttpClient;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
@@ -61,6 +64,11 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
 
     private boolean firstIFrameAdded;
 
+    public static final String KEY_FINGER_DOWN = "fingerdown";
+    public static final String KEY_FINGER_UP = "fingerup";
+    public static final String KEY_FINGER_MOVE = "fingermove";
+    public static final String KEY_EVENT_TYPE = "type";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -88,7 +96,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
             }
             ClientActivity.this.webSocket = webSocket;
             showToast("Connection Completed");
-            setTimer();
+//            setTimer();
             webSocket.setClosedCallback(new CompletedCallback() {
                 @Override
                 public void onCompleted(Exception e) {
@@ -261,10 +269,32 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
 
     @Override
     public boolean onTouch(View view, MotionEvent motionEvent) {
-        if (webSocket != null) {
-            webSocket.send(motionEvent.getX() / deviceWidth + "," + motionEvent.getY() / deviceHeight);
+        JSONObject touchData = new JSONObject();
+        try {
+            switch (motionEvent.getAction()) {
+                case MotionEvent.ACTION_DOWN:
+                    touchData.put("type", KEY_FINGER_DOWN);
+                    break;
+                case MotionEvent.ACTION_MOVE:
+                    touchData.put(KEY_EVENT_TYPE, KEY_FINGER_MOVE);
+                    break;
+                case MotionEvent.ACTION_UP:
+                    touchData.put(KEY_EVENT_TYPE, KEY_FINGER_UP);
+                    break;
+                default:
+                    return true;
+            }
+            touchData.put("x", motionEvent.getX()/deviceWidth);
+            touchData.put("y", motionEvent.getY()/deviceHeight);
+            Log.d(TAG, "Sending = " + touchData.toString());
+            if (webSocket != null) {
+                webSocket.send(touchData.toString());
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
-        return false;
+
+        return true;
     }
 
     /**

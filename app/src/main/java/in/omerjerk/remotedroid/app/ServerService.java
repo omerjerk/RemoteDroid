@@ -17,7 +17,9 @@ import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
+import android.os.SystemClock;
 import android.preference.PreferenceManager;
+import android.support.v4.view.InputDeviceCompat;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
@@ -37,13 +39,20 @@ import com.koushikdutta.async.callback.DataCallback;
 import com.koushikdutta.async.http.WebSocket;
 import com.koushikdutta.async.http.server.AsyncHttpServer;
 import com.koushikdutta.async.http.server.AsyncHttpServerRequest;
+import com.koushikdutta.async.http.socketio.ExceptionCallback;
+
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import in.umairkhan.remotedroid.R;
 
@@ -72,6 +81,10 @@ public class ServerService extends Service {
     private static boolean LOCAL_DEBUG = true;
     VideoWindow videoWindow = null;
     private VirtualDisplay virtualDisplay;
+
+    private EventInput input;
+
+    Method tap;
 
     private class ToastRunnable implements Runnable {
         String mText;
@@ -113,6 +126,14 @@ public class ServerService extends Service {
             mDisplay.getRealSize(resolution);
             resolution.x = (int) (resolution.x * resolutionRatio);
             resolution.y = (int) (resolution.y * resolutionRatio);
+
+            if (input == null) {
+                try {
+                    input = new EventInput();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
 
             if (!LOCAL_DEBUG) {
                 server = new AsyncHttpServer();
@@ -177,16 +198,21 @@ public class ServerService extends Service {
                 }
             });
 
+            try {
+                tap = Main.class.getMethod("tap", Float.class, Float.class);
+            } catch (NoSuchMethodException e) {
+                e.printStackTrace();
+            }
+
             webSocket.setStringCallback(new WebSocket.StringCallback() {
                 @Override
                 public void onStringAvailable(String s) {
-                    String[] parts = s.split(",");
-                    if (parts.length < 2) {
-                        return;
-                    }
+
                     try {
-                        float x = Float.parseFloat(parts[0]) * deviceWidth;
-                        float y = Float.parseFloat(parts[1]) * deviceHeight;
+                        JSONObject touch = new JSONObject(s);
+                        float x = Float.parseFloat(touch.getString("x")) * deviceWidth;
+                        float y = Float.parseFloat(touch.getString("y")) * deviceHeight;
+                        /*
                         Process su = null;
                         DataOutputStream outputStream = null;
                         try {
@@ -201,7 +227,19 @@ public class ServerService extends Service {
                         outputStream.writeBytes("exit\n");
                         outputStream.flush();
                         su.waitFor();
-                        Log.d(TAG, "Execution using su = " + "input tap " + x + " " + y);
+                        Log.d(TAG, "Execution using su = " + "input tap " + x + " " + y);*/
+
+                        if (touch.getString(ClientActivity.KEY_EVENT_TYPE).equals(ClientActivity.KEY_FINGER_DOWN)) {
+                            input.injectMotionEvent(InputDeviceCompat.SOURCE_TOUCHSCREEN, 0,
+                                    SystemClock.uptimeMillis(), x, y, 1.0f);
+                        } else if (touch.getString(ClientActivity.KEY_EVENT_TYPE).equals(ClientActivity.KEY_FINGER_UP)) {
+                            input.injectMotionEvent(InputDeviceCompat.SOURCE_TOUCHSCREEN, 1,
+                                    SystemClock.uptimeMillis(), x, y, 1.0f);
+                        } else if (touch.getString(ClientActivity.KEY_EVENT_TYPE).equals(ClientActivity.KEY_FINGER_MOVE)) {
+                            input.injectMotionEvent(InputDeviceCompat.SOURCE_TOUCHSCREEN, 2,
+                                    SystemClock.uptimeMillis(), x, y, 1.0f);
+                        }
+
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
@@ -320,7 +358,6 @@ public class ServerService extends Service {
                                     encodedData.get(b, info.offset, info.offset + info.size);
                                     socket.send(b);
                                 }
-                                Log.d(TAG, "String = " + new String(b));
 
                             } catch (BufferUnderflowException e) {
                                 e.printStackTrace();

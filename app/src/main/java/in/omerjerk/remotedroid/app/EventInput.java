@@ -35,15 +35,14 @@ public class EventInput {
                 methodName, new Class[]{InputEvent.class, Integer.TYPE});
     }
 
-    public static void injectMotionEvent(InputManager im, Method injectInputEventMethod,
-                                          int inputSource, int action, long when, float x, float y,
-                                          float pressure) throws InvocationTargetException, IllegalAccessException {
+    public void injectMotionEvent(int inputSource, int action, long when, float x, float y,
+                                  float pressure) throws InvocationTargetException, IllegalAccessException {
         MotionEvent event = MotionEvent.obtain(when, when, action, x, y, pressure, 1.0f, 0, 1.0f, 1.0f, 0, 0);
         event.setSource(inputSource);
         injectInputEventMethod.invoke(im, new Object[]{event, Integer.valueOf(0)});
     }
 
-    private static void injectKeyEvent(InputManager im, Method injectInputEventMethod, KeyEvent event)
+    private void injectKeyEvent(KeyEvent event)
             throws InvocationTargetException, IllegalAccessException {
         injectInputEventMethod.invoke(im, new Object[]{event, Integer.valueOf(0)});
     }
