@@ -78,7 +78,7 @@ public class ServerService extends Service {
     int deviceHeight;
     Point resolution = new Point();
 
-    private static boolean LOCAL_DEBUG = true;
+    private static boolean LOCAL_DEBUG = false;
     VideoWindow videoWindow = null;
     private VirtualDisplay virtualDisplay;
 
@@ -115,7 +115,7 @@ public class ServerService extends Service {
         }
         if (server == null && intent.getAction().equals("START")) {
             preferences = PreferenceManager.getDefaultSharedPreferences(this);
-            LOCAL_DEBUG = preferences.getBoolean("local_debugging", true);
+            LOCAL_DEBUG = preferences.getBoolean("local_debugging", false);
             DisplayMetrics dm = new DisplayMetrics();
             Display mDisplay = ((WindowManager) getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay();
             mDisplay.getMetrics(dm);
