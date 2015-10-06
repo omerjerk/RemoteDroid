@@ -20,7 +20,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Toast;
-import eu.chainfire.libsuperuser.Shell;
+
 import in.umairkhan.remotedroid.R;
 
 
@@ -40,16 +40,6 @@ public class MainActivity extends Activity {
     private Intent mResultData;
     private int mResultCode;
 
-    private static final String INSTALL_SCRIPT =
-            "mount -o rw,remount /system\n" +
-            "cat %s > /system/priv-app/RemoteDroid.apk.tmp\n" +
-            "chmod 644 /system/priv-app/RemoteDroid.apk.tmp\n" +
-            "pm uninstall %s\n" +
-            "mv /system/priv-app/RemoteDroid.apk.tmp /system/priv-app/RemoteDroid.apk\n" +
-            "pm install -r /system/priv-app/RemoteDroid.apk\n" +
-            "sleep 5\n" +
-            "am start -n in.tosc.remotedroid.app/.MainActivity";
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -66,10 +56,10 @@ public class MainActivity extends Activity {
                         @Override
                         public void run() {
                             if (isRooted) {
-                                Toast.makeText(MainActivity.this, "Device is rooted", Toast.LENGTH_SHORT).show();
+                                Toast.makeText(MainActivity.this, "Device is rooted... bypassing !", Toast.LENGTH_LONG).show();
                             } else {
                                 Toast.makeText(MainActivity.this, "Device us unrooted! You won't be able to use" +
-                                        "this device as a server", Toast.LENGTH_SHORT).show();
+                                        "this device as a server", Toast.LENGTH_LONG).show();
                             }
                         }
                     });
@@ -99,10 +89,6 @@ public class MainActivity extends Activity {
         if (id == R.id.action_settings) {
             startActivity(new Intent(this, SettingsActivity.class));
             return true;
-        }
-        if (id == R.id.action_install) {
-            InstallDialog installDialog = new InstallDialog();
-            installDialog.show(getFragmentManager(), "INSTALL_DIALOG");
         }
         return super.onOptionsItemSelected(item);
     }
@@ -156,74 +142,7 @@ public class MainActivity extends Activity {
                     Intent startServerIntent = new Intent(MainActivity.this, ServerService.class);
                     startServerIntent.setAction("START");
                     startService(startServerIntent);
-                    //finish();
-                }
-            });
-            builder.setNegativeButton("Install to /system", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialogInterface, int i) {
-                    new InstallDialog().show(getFragmentManager(), "INSTALL_DIALOG");
-                }
-            });
-            return builder.create();
-        }
-    }
-
-    @SuppressLint("ValidFragment")
-    private class InstallDialog extends DialogFragment {
-        @Override
-        public Dialog onCreateDialog(Bundle savedInstanceState) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-            builder.setTitle("Install the script");
-            builder.setMessage("It's necessary to install this app in the /system partition. Proceed?");
-            builder.setPositiveButton("Install", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialogInterface, int i) {
-                    new AsyncTask<Void, Void, Void>() {
-                        @Override
-                        protected Void doInBackground(Void... voids){
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    Toast.makeText(MainActivity.this,
-                                            "Installing", Toast.LENGTH_SHORT).show();
-                                }
-                            });
-                            SharedPreferences.Editor editor = prefs.edit();
-                            editor.putBoolean(KEY_SYSTEM_PRIVILEGE_PREF, true);
-                            editor.commit();
-                            Shell.SU.run(String.format(INSTALL_SCRIPT,
-                                    new String[] {
-                                            MainActivity.this.getPackageCodePath(),
-                                            MainActivity.this.getPackageName()
-                                    }));
-                            return null;
-                        }
-                    }.execute();
-                }
-            })
-            .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialogInterface, int i) {
-                    Toast.makeText(MainActivity.this,
-                            "This app won't run unless it is installed in the system partition",
-                            Toast.LENGTH_SHORT).show();
-                }
-            });
-            return builder.create();
-        }
-    }
-
-    @SuppressLint("ValidFragment")
-    private class ErrorDialog extends DialogFragment {
-        @Override
-        public Dialog onCreateDialog(Bundle savedInstanceState) {
-            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-            builder.setTitle("Not Rooted!");
-            builder.setMessage("The device needs to be rooted for this app to use. Please exit the app.");
-            builder.setPositiveButton("Close", new DialogInterface.OnClickListener() {
-                @Override
-                public void onClick(DialogInterface dialogInterface, int i) {
+                    finish();
                 }
             });
             return builder.create();
