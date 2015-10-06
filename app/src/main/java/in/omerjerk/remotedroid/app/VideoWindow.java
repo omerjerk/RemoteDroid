@@ -41,7 +41,7 @@ public class VideoWindow extends LinearLayout implements SurfaceHolder.Callback{
 
     private static final String TAG = "VideoWindow";
 
-    private Object mLock = new Object();
+    private final Object mLock = new Object();
 
     private boolean firstIFrameAdded = false;
 

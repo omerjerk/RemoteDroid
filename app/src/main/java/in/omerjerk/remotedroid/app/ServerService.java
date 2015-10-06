@@ -7,7 +7,6 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
@@ -24,9 +23,6 @@ import android.view.Display;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Surface;
-import android.view.SurfaceView;
-import android.view.ViewGroup;
-import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Toast;
 
@@ -54,10 +50,9 @@ public class ServerService extends Service {
     private static final String TAG = "omerjerk";
 
     private int serverPort;
-    private float bitrateRatio;
 
     private AsyncHttpServer server;
-    private List<WebSocket> _sockets = new ArrayList<WebSocket>();
+    private List<WebSocket> _sockets = new ArrayList<>();
 
     Thread encoderThread = null;
 
@@ -114,14 +109,12 @@ public class ServerService extends Service {
             resolution.x = (int) (resolution.x * resolutionRatio);
             resolution.y = (int) (resolution.y * resolutionRatio);
 
-            if (!LOCAL_DEBUG) {
-                server = new AsyncHttpServer();
-                server.websocket("/", null, websocketCallback);
-                serverPort = Integer.parseInt(preferences.getString(SettingsActivity.KEY_PORT_PREF, "6060"));
-                bitrateRatio = Float.parseFloat(preferences.getString(SettingsActivity.KEY_BITRATE_PREF, "1"));
-                updateNotification("Streaming is live at");
-                server.listen(serverPort);
-            } else {
+            server = new AsyncHttpServer();
+            server.websocket("/", null, websocketCallback);
+            serverPort = Integer.parseInt(preferences.getString(SettingsActivity.KEY_PORT_PREF, "6060"));
+            updateNotification("Streaming is live at");
+            server.listen(serverPort);
+            if (LOCAL_DEBUG) {
                 final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                         WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY,
                         WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
@@ -220,6 +213,7 @@ public class ServerService extends Service {
     /**
      * Create the display surface out of the encoder. The data to encoder will be fed from this
      * Surface itself.
+     *
      * @return
      * @throws IOException
      */
@@ -371,6 +365,7 @@ public class ServerService extends Service {
 
     /**
      * Display the notification
+     *
      * @param message
      */
     private void updateNotification(String message) {
@@ -384,6 +379,6 @@ public class ServerService extends Service {
                         .addAction(R.drawable.ic_media_stop, "Stop", stopServiceIntent)
                         .setContentTitle(message)
                         .setContentText(Utils.getIPAddress(true) + ":" + serverPort);
-        startForeground(6000, mBuilder.build());
+        startForeground(serverPort, mBuilder.build());
     }
 }
