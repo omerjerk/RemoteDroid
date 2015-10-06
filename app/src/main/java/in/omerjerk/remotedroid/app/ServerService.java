@@ -107,6 +107,7 @@ public class ServerService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && intent.getAction() == "STOP") {
             dispose();
+            return START_NOT_STICKY;
         }
         if (server == null && intent.getAction().equals("START")) {
             preferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -189,7 +190,6 @@ public class ServerService extends Service {
                         _sockets.clear();
                     }
                     showToast("Disconnected");
-
                     dispose();
                 }
             });
