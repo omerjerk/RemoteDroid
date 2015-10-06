@@ -106,12 +106,7 @@ public class ServerService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && intent.getAction() == "STOP") {
-            if (encoder != null)
-                encoder.signalEndOfInputStream();
-            server.stop();
-            server = null;
-            stopForeground(true);
-            stopSelf();
+            dispose();
         }
         if (server == null && intent.getAction().equals("START")) {
             preferences = PreferenceManager.getDefaultSharedPreferences(this);
@@ -192,9 +187,10 @@ public class ServerService extends Service {
                             ex.printStackTrace();
                     } finally {
                         _sockets.clear();
-                        showToast("Removed");
                     }
                     showToast("Disconnected");
+
+                    dispose();
                 }
             });
 
@@ -390,11 +386,7 @@ public class ServerService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        if (encoder != null) {
-            encoder.stop();
-            encoder.release();
-            encoder = null;
-        }
+        dispose();
     }
 
     @Override
@@ -422,5 +414,23 @@ public class ServerService extends Service {
                         .setContentTitle(message)
                         .setContentText(Utils.getIPAddress(true) + ":" + serverPort);
         startForeground(6000, mBuilder.build());
+    }
+
+    private void dispose() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            virtualDisplay.release();
+        }
+        if (encoder != null) {
+            encoder.signalEndOfInputStream();
+            encoder.stop();
+            encoder.release();
+            encoder = null;
+        }
+        if (server != null) {
+            server.stop();
+            server = null;
+        }
+        stopForeground(true);
+        stopSelf();
     }
 }
