@@ -32,6 +32,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Toast;
 
+import com.koushikdutta.async.AsyncServer;
 import com.koushikdutta.async.ByteBufferList;
 import com.koushikdutta.async.DataEmitter;
 import com.koushikdutta.async.callback.CompletedCallback;
@@ -39,20 +40,15 @@ import com.koushikdutta.async.callback.DataCallback;
 import com.koushikdutta.async.http.WebSocket;
 import com.koushikdutta.async.http.server.AsyncHttpServer;
 import com.koushikdutta.async.http.server.AsyncHttpServerRequest;
-import com.koushikdutta.async.http.socketio.ExceptionCallback;
 
-import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 import in.umairkhan.remotedroid.R;
 
@@ -74,17 +70,15 @@ public class ServerService extends Service {
 
     SharedPreferences preferences;
 
-    int deviceWidth;
-    int deviceHeight;
+    static int deviceWidth;
+    static int deviceHeight;
     Point resolution = new Point();
 
     private static boolean LOCAL_DEBUG = false;
     VideoWindow videoWindow = null;
     private VirtualDisplay virtualDisplay;
 
-    private EventInput input;
-
-    Method tap;
+    private WebSocket localSocket; //the websocket associated with the localServer
 
     private class ToastRunnable implements Runnable {
         String mText;
@@ -122,14 +116,6 @@ public class ServerService extends Service {
             mDisplay.getRealSize(resolution);
             resolution.x = (int) (resolution.x * resolutionRatio);
             resolution.y = (int) (resolution.y * resolutionRatio);
-
-            if (input == null) {
-                try {
-                    input = new EventInput();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
 
             if (!LOCAL_DEBUG) {
                 server = new AsyncHttpServer();
@@ -194,51 +180,10 @@ public class ServerService extends Service {
                 }
             });
 
-            try {
-                tap = Main.class.getMethod("tap", Float.class, Float.class);
-            } catch (NoSuchMethodException e) {
-                e.printStackTrace();
-            }
-
             webSocket.setStringCallback(new WebSocket.StringCallback() {
                 @Override
                 public void onStringAvailable(String s) {
-
-                    try {
-                        JSONObject touch = new JSONObject(s);
-                        float x = Float.parseFloat(touch.getString("x")) * deviceWidth;
-                        float y = Float.parseFloat(touch.getString("y")) * deviceHeight;
-                        /*
-                        Process su = null;
-                        DataOutputStream outputStream = null;
-                        try {
-                            su = Runtime.getRuntime().exec("su");
-                            outputStream = new DataOutputStream(su.getOutputStream());
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                        //outputStream.flush();
-                        outputStream.writeBytes("input tap " + x + " " + y + "\n");
-                        outputStream.flush();
-                        outputStream.writeBytes("exit\n");
-                        outputStream.flush();
-                        su.waitFor();
-                        Log.d(TAG, "Execution using su = " + "input tap " + x + " " + y);*/
-
-                        if (touch.getString(ClientActivity.KEY_EVENT_TYPE).equals(ClientActivity.KEY_FINGER_DOWN)) {
-                            input.injectMotionEvent(InputDeviceCompat.SOURCE_TOUCHSCREEN, 0,
-                                    SystemClock.uptimeMillis(), x, y, 1.0f);
-                        } else if (touch.getString(ClientActivity.KEY_EVENT_TYPE).equals(ClientActivity.KEY_FINGER_UP)) {
-                            input.injectMotionEvent(InputDeviceCompat.SOURCE_TOUCHSCREEN, 1,
-                                    SystemClock.uptimeMillis(), x, y, 1.0f);
-                        } else if (touch.getString(ClientActivity.KEY_EVENT_TYPE).equals(ClientActivity.KEY_FINGER_MOVE)) {
-                            input.injectMotionEvent(InputDeviceCompat.SOURCE_TOUCHSCREEN, 2,
-                                    SystemClock.uptimeMillis(), x, y, 1.0f);
-                        }
-
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    Log.d(TAG, "String received. No idea what to do with it.");
                 }
             });
 
@@ -295,7 +240,6 @@ public class ServerService extends Service {
             } else {
                 showToast("Something went wrong. Please restart the app.");
             }
-
         }
 
         encoder.start();
@@ -380,6 +324,29 @@ public class ServerService extends Service {
                     }
                 }
             }
+        }
+    }
+
+    private void startLocalServer() {
+        if (server != null) {
+            server.websocket("/main", new AsyncHttpServer.WebSocketRequestCallback() {
+                @Override
+                public void onConnected(WebSocket webSocket, AsyncHttpServerRequest request) {
+                    localSocket = webSocket;
+                    webSocket.setClosedCallback(new CompletedCallback() {
+                        @Override
+                        public void onCompleted(Exception ex) {
+                            if (ex != null) {
+                                ex.printStackTrace();
+                            }
+                            Log.d(TAG, "Connection to main class disconnected");
+                        }
+                    });
+                }
+            });
+        } else {
+            Log.e(TAG, "Unable to create local websocket connection. Server NULL.");
+            showToast("Something went wrong. Touches won't work. Please report to Dev.");
         }
     }
 

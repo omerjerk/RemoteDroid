@@ -2,10 +2,6 @@ package in.omerjerk.remotedroid.app;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.app.DialogFragment;
-import android.content.DialogInterface;
 import android.graphics.Point;
 import android.media.MediaCodec;
 import android.media.MediaFormat;
@@ -31,7 +27,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.IOException;
-import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -52,6 +47,7 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
     CircularEncoderBuffer encBuffer = new CircularEncoderBuffer((int)(1024 * 1024 * 0.5), 30, 7);
 
     private WebSocket webSocket;
+    private WebSocket touchSocket;
 
     String address;
 
@@ -254,6 +250,20 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
                 }
             }).start();
             AsyncHttpClient.getDefaultInstance().websocket("ws://" + address, null, websocketCallback);
+            String ip = address.split(":")[0];
+            showToast("IP = " + ip);
+            AsyncHttpClient.getDefaultInstance().websocket("ws://" + ip + ":6059", null,
+                    new AsyncHttpClient.WebSocketConnectCallback() {
+                @Override
+                public void onCompleted(Exception ex, WebSocket tSocket) {
+                    if (ex != null) {
+                        ex.printStackTrace();
+                        showToast(ex.getMessage());
+                        return;
+                    }
+                    touchSocket = tSocket;
+                }
+            });
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -287,8 +297,8 @@ public class ClientActivity extends Activity implements SurfaceHolder.Callback, 
             touchData.put("x", motionEvent.getX()/deviceWidth);
             touchData.put("y", motionEvent.getY()/deviceHeight);
             Log.d(TAG, "Sending = " + touchData.toString());
-            if (webSocket != null) {
-                webSocket.send(touchData.toString());
+            if (touchSocket != null) {
+                touchSocket.send(touchData.toString());
             }
         } catch (JSONException e) {
             e.printStackTrace();
