@@ -5,7 +5,6 @@ import android.os.Process;
 import android.support.v4.view.InputDeviceCompat;
 import android.util.Log;
 
-import com.koushikdutta.async.AsyncServer;
 import com.koushikdutta.async.callback.CompletedCallback;
 import com.koushikdutta.async.http.WebSocket;
 import com.koushikdutta.async.http.server.AsyncHttpServer;
@@ -35,8 +34,10 @@ public class Main {
 
         AsyncHttpServer server = new AsyncHttpServer();
         server.websocket("/", null, new AsyncHttpServer.WebSocketRequestCallback() {
+
             @Override
             public void onConnected(WebSocket webSocket, AsyncHttpServerRequest request) {
+                Log.d(TAG, "Touch client connected");
                 webSocket.setClosedCallback(new CompletedCallback() {
                     @Override
                     public void onCompleted(Exception ex) {
@@ -72,17 +73,18 @@ public class Main {
             }
         });
         server.listen(6059);
+        Log.d(TAG, "Touch server listening at port 6059");
 
         if (input == null) {
             Log.e(TAG, "THIS SHIT IS NULL");
         } else {
             Log.e(TAG, "THIS SHIT NOT NULL");
         }
-
+/*
         Looper.prepare();
         handler =  new Handler();
         Looper.loop();
-        Log.d(TAG, "Returning from MAIN");
+        Log.d(TAG, "Returning from MAIN"); */
     }
 
     public static void tap(Float x, Float y) {

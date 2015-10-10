@@ -5,15 +5,18 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.util.Log;
 
-import eu.chainfire.libsuperuser.Shell;
+import java.io.DataOutputStream;
+import java.io.IOException;
 
 /**
  * Created by omerjerk on 9/10/15.
  */
 public class MainStarter {
 
-    private static final String COMMAND = "sh -c \"CLASSPATH=%s /system/bin/app_process32 " +
-            "/system/bin in.omerjerk.remotedroid.app.Main\"";
+    private static final String TAG = "MainStarter";
+
+    private static final String COMMAND = "su -c \"CLASSPATH=%s /system/bin/app_process32 " +
+            "/system/bin in.omerjerk.remotedroid.app.Main\"\n";
 
     private Context context;
 
@@ -22,19 +25,30 @@ public class MainStarter {
     }
 
     public void start() {
-        Shell.SU.run(String.format(COMMAND, getApkLocation()));
+//        Shell.SU.run(String.format(COMMAND, getApkLocation()));
+        try {
+            Log.d(TAG, "===EXECUTING===" + String.format(COMMAND, getApkLocation()));
+            Process process = Runtime.getRuntime().exec("su");
+            DataOutputStream outputStream = new DataOutputStream(process.getOutputStream());
+            outputStream.writeBytes(String.format(COMMAND, getApkLocation()));
+            outputStream.flush();
+            process.waitFor();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     private String getApkLocation() {
-        String apkLocation = null;
         PackageManager pm = context.getPackageManager();
 
         for (ApplicationInfo app : pm.getInstalledApplications(0)) {
-            Log.d("PackageList", "package: " + app.packageName + ", sourceDir: " + app.sourceDir);
+//            Log.d("PackageList", "package: " + app.packageName + ", sourceDir: " + app.sourceDir);
             if (app.packageName.equals(context.getPackageName())) {
-                apkLocation = app.sourceDir + "/base.apk";
+                return app.sourceDir;
             }
         }
-        return apkLocation;
+        return null;
     }
 }

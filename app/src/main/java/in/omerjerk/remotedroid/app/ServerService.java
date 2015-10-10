@@ -17,22 +17,16 @@ import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.SystemClock;
 import android.preference.PreferenceManager;
-import android.support.v4.view.InputDeviceCompat;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Surface;
-import android.view.SurfaceView;
-import android.view.ViewGroup;
-import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Toast;
 
-import com.koushikdutta.async.AsyncServer;
 import com.koushikdutta.async.ByteBufferList;
 import com.koushikdutta.async.DataEmitter;
 import com.koushikdutta.async.callback.CompletedCallback;
@@ -41,10 +35,7 @@ import com.koushikdutta.async.http.WebSocket;
 import com.koushikdutta.async.http.server.AsyncHttpServer;
 import com.koushikdutta.async.http.server.AsyncHttpServerRequest;
 
-import org.json.JSONObject;
-
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -77,8 +68,6 @@ public class ServerService extends Service {
     private static boolean LOCAL_DEBUG = false;
     VideoWindow videoWindow = null;
     private VirtualDisplay virtualDisplay;
-
-    private WebSocket localSocket; //the websocket associated with the localServer
 
     private class ToastRunnable implements Runnable {
         String mText;
@@ -124,6 +113,14 @@ public class ServerService extends Service {
                 bitrateRatio = Float.parseFloat(preferences.getString(SettingsActivity.KEY_BITRATE_PREF, "1"));
                 updateNotification("Streaming is live at");
                 server.listen(serverPort);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        showToast("Starting main touch server");
+                        new MainStarter(ServerService.this).start();
+                        showToast("started main touch server");
+                    }
+                }).start();
             } else {
                 final WindowManager.LayoutParams params = new WindowManager.LayoutParams(
                         WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY,
@@ -327,29 +324,6 @@ public class ServerService extends Service {
         }
     }
 
-    private void startLocalServer() {
-        if (server != null) {
-            server.websocket("/main", new AsyncHttpServer.WebSocketRequestCallback() {
-                @Override
-                public void onConnected(WebSocket webSocket, AsyncHttpServerRequest request) {
-                    localSocket = webSocket;
-                    webSocket.setClosedCallback(new CompletedCallback() {
-                        @Override
-                        public void onCompleted(Exception ex) {
-                            if (ex != null) {
-                                ex.printStackTrace();
-                            }
-                            Log.d(TAG, "Connection to main class disconnected");
-                        }
-                    });
-                }
-            });
-        } else {
-            Log.e(TAG, "Unable to create local websocket connection. Server NULL.");
-            showToast("Something went wrong. Touches won't work. Please report to Dev.");
-        }
-    }
-
     @Override
     public void onDestroy() {
         super.onDestroy();
@@ -385,7 +359,8 @@ public class ServerService extends Service {
 
     private void dispose() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            virtualDisplay.release();
+            if (virtualDisplay != null)
+                virtualDisplay.release();
         }
         if (encoder != null) {
             encoder.signalEndOfInputStream();
