@@ -20,11 +20,15 @@ import java.lang.reflect.InvocationTargetException;
 public class Main {
 
     private static EventInput input;
-    static Handler handler;
+    static Looper looper;
 
     public static final String TAG = "RemoteDroid_MAIN";
     public static void main(String[] args) {
-        Log.d(TAG, "current process id = " + android.os.Process.myPid());
+
+        Looper.prepare();
+        looper = Looper.myLooper();
+
+        Log.d(TAG, "current process id = " + Process.myPid());
         Log.d(TAG, "current process uid = " + Process.myUid());
         try {
             input = new EventInput();
@@ -44,12 +48,14 @@ public class Main {
                         if (ex != null) {
                             ex.printStackTrace();
                         }
+                        Main.looper.quit();
                         Log.d(TAG, "Main WebSocket closed");
                     }
                 });
                 webSocket.setStringCallback(new WebSocket.StringCallback() {
                     @Override
                     public void onStringAvailable(String s) {
+                        Log.d(TAG, "Received string = " + s);
                         try {
                             JSONObject touch = new JSONObject(s);
                             float x = Float.parseFloat(touch.getString("x")) * ServerService.deviceWidth;
@@ -80,11 +86,10 @@ public class Main {
         } else {
             Log.e(TAG, "THIS SHIT NOT NULL");
         }
-/*
-        Looper.prepare();
-        handler =  new Handler();
+
+        Log.d(TAG, "Waiting for main to finish");
         Looper.loop();
-        Log.d(TAG, "Returning from MAIN"); */
+        Log.d(TAG, "Returning from MAIN");
     }
 
     public static void tap(Float x, Float y) {
