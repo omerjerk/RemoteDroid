@@ -1,7 +1,7 @@
 package com.koushikdutta.async.http.body;
 
-import org.apache.http.NameValuePair;
-import org.apache.http.message.BasicNameValuePair;
+import com.koushikdutta.async.http.BasicNameValuePair;
+import com.koushikdutta.async.http.NameValuePair;
 
 import java.io.File;
 import java.io.FileInputStream;
